@@ -1,8 +1,10 @@
 # DEAD AIR
 
-**1714 AM. A pirate radio station that never goes off air.**
+**Radio's dead. Turn it up anyway.**
 
-Open the site, turn an old analog tuning dial through the static, and land on 1714 AM. A late-night AI DJ is hosting: it knows what just played and what is coming next, talks over song intros like a real host, reads listener requests and dedications, and drops station IDs. At midnight the station drifts into a numbers station.
+*"I'm Dead John, coming to you LIVE, and this... is DEAD AIR."*
+
+1714 AM. A pirate radio station that never goes off air. Open the site, turn an old analog tuning dial through the static, and land on 1714 AM. Dead John, the late-night AI DJ, is hosting: it knows what just played and what is coming next, talks over song intros like a real host, reads listener requests and dedications, and drops station IDs. At midnight the station drifts into a numbers station.
 
 Built for Kiroween 2026 (Resurrection category). Built with [Kiro](https://kiro.dev): see the `.kiro/` folder for the specs, hooks and steering docs that drove the build.
 
