@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+
+# audio sources and renders stay out of git
+*.wav
+*.mp3
+*.flac
