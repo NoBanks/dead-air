@@ -42,7 +42,7 @@ export interface AnalysisResult {
 
 /**
  * One entry in library.json (public shape, written to disk).
- * Internal cache fields (source_size, source_mtime) are stripped before write.
+ * Internal cache fields are stripped before write and stored separately in .library-cache.json.
  */
 export interface LibraryEntry {
   id: string;
@@ -52,7 +52,7 @@ export interface LibraryEntry {
   talkup_seconds: number;
   lufs: number;
   made_at: string;
-  mp3: string;
+  mp3: string; // Public URL: "/audio/<slug>.mp3"
 }
 
 /**
@@ -64,12 +64,11 @@ export interface LibraryEntryInternal extends LibraryEntry {
   source_mtime: number;
 }
 
-/** Fields stored per-slug in the loaded cache (read from existing library.json). */
+/** Fields stored per-slug in the separate cache file (.library-cache.json). */
 export interface CacheRecord {
   slug: string;
   source_size: number;
   source_mtime: number;
-  entry: LibraryEntry;
 }
 
 /** Resolved environment variables and CLI flags for a single run. */

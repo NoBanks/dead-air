@@ -1,5 +1,5 @@
 /**
- * cache.ts - Resume logic. Read existing library.json, check source WAV
+ * cache.ts - Resume logic. Read existing .library-cache.json, check source WAV
  * size+mtime against cached values.
  *
  * REQ-9: Skip unchanged tracks. Force-flag bypasses all cache checks.
@@ -10,16 +10,12 @@ import type { CacheRecord, LibraryEntry } from "./types.js";
 
 /**
  * Load the existing library.json (if it exists) and build a Map keyed by slug.
- * The map values are CacheRecord objects combining the public LibraryEntry with
- * reconstructed source_size and source_mtime.
- *
- * NOTE: The public library.json does NOT store source_size / source_mtime (they
- * are stripped on write). If those fields are absent in the file, the returned
- * CacheRecord will have 0 for both, so the cache check in `isCached` will miss
- * and re-encode — which is the correct safe fallback.
+ * Used to retrieve previous entry data when cache-hitting.
  */
-export function loadCache(libraryPath: string): Map<string, CacheRecord> {
-  const map = new Map<string, CacheRecord>();
+export function loadLibraryEntries(
+  libraryPath: string
+): Map<string, Record<string, unknown>> {
+  const map = new Map<string, Record<string, unknown>>();
 
   if (!existsSync(libraryPath)) {
     return map;
@@ -30,7 +26,7 @@ export function loadCache(libraryPath: string): Map<string, CacheRecord> {
     const raw = readFileSync(libraryPath, "utf8");
     entries = JSON.parse(raw);
   } catch {
-    // Corrupt or unreadable — treat as empty cache.
+    // Corrupt or unreadable — treat as empty.
     return map;
   }
 
@@ -44,25 +40,46 @@ export function loadCache(libraryPath: string): Map<string, CacheRecord> {
       entry !== null &&
       typeof (entry as Record<string, unknown>).slug === "string"
     ) {
-      const e = entry as LibraryEntry & {
-        source_size?: number;
-        source_mtime?: number;
-      };
-      map.set(e.slug, {
-        slug: e.slug,
-        source_size: typeof e.source_size === "number" ? e.source_size : 0,
-        source_mtime: typeof e.source_mtime === "number" ? e.source_mtime : 0,
-        entry: {
-          id: e.id,
-          slug: e.slug,
-          title: e.title,
-          seconds: e.seconds,
-          talkup_seconds: e.talkup_seconds,
-          lufs: e.lufs,
-          made_at: e.made_at,
-          mp3: e.mp3,
-        },
-      });
+      const e = entry as Record<string, unknown>;
+      map.set(e.slug as string, e);
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Load the existing .library-cache.json (if it exists) and build a Map keyed by slug.
+ * The map values are CacheRecord objects with source_size and source_mtime.
+ */
+export function loadCache(cacheJsonPath: string): Map<string, CacheRecord> {
+  const map = new Map<string, CacheRecord>();
+
+  if (!existsSync(cacheJsonPath)) {
+    return map;
+  }
+
+  let records: unknown;
+  try {
+    const raw = readFileSync(cacheJsonPath, "utf8");
+    records = JSON.parse(raw);
+  } catch {
+    // Corrupt or unreadable — treat as empty cache.
+    return map;
+  }
+
+  if (!Array.isArray(records)) {
+    return map;
+  }
+
+  for (const record of records) {
+    if (
+      typeof record === "object" &&
+      record !== null &&
+      typeof (record as Record<string, unknown>).slug === "string"
+    ) {
+      const r = record as CacheRecord;
+      map.set(r.slug, r);
     }
   }
 
@@ -74,8 +91,8 @@ export function loadCache(libraryPath: string): Map<string, CacheRecord> {
  *
  * A cache hit requires:
  *   1. The slug has a record in `cacheMap`.
- *   2. The WAV's current size matches `source_size`.
- *   3. The WAV's current mtime (ms) matches `source_mtime`.
+ *   2. The WAV's current size matches the cached source_size.
+ *   3. The WAV's current mtime (ms) matches the cached source_mtime.
  *   4. Both source_size and source_mtime are non-zero.
  *   5. The MP3 output file exists at `mp3Path`.
  *
@@ -83,26 +100,26 @@ export function loadCache(libraryPath: string): Map<string, CacheRecord> {
  * @param wavPath - Absolute path to the source WAV.
  * @param mp3Path - Absolute path to the expected output MP3.
  * @param cacheMap - Map built by `loadCache`.
- * @returns The cached LibraryEntry if hit, null if miss.
+ * @returns true if the track can be skipped, false if it needs re-encoding.
  */
 export function isCached(
   slug: string,
   wavPath: string,
   mp3Path: string,
   cacheMap: Map<string, CacheRecord>
-): CacheRecord["entry"] | null {
+): boolean {
   const record = cacheMap.get(slug);
-  if (!record) return null;
-  if (record.source_size === 0 || record.source_mtime === 0) return null;
-  if (!existsSync(mp3Path)) return null;
+  if (!record) return false;
+  if (record.source_size === 0 || record.source_mtime === 0) return false;
+  if (!existsSync(mp3Path)) return false;
 
   try {
     const stat = statSync(wavPath);
-    if (stat.size !== record.source_size) return null;
-    if (stat.mtimeMs !== record.source_mtime) return null;
+    if (stat.size !== record.source_size) return false;
+    if (stat.mtimeMs !== record.source_mtime) return false;
   } catch {
-    return null;
+    return false;
   }
 
-  return record.entry;
+  return true;
 }

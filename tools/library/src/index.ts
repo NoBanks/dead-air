@@ -13,7 +13,7 @@ import { fileURLToPath } from "url";
 import { parseCsv } from "./csv.js";
 import { makeIsExcluded } from "./exclude.js";
 import { buildSlug } from "./slug.js";
-import { loadCache, isCached } from "./cache.js";
+import { loadCache, isCached, loadLibraryEntries } from "./cache.js";
 import { analyzeTrack } from "./analyze.js";
 import { encodeTrack } from "./encode.js";
 import { writeLibrary } from "./library.js";
@@ -81,6 +81,7 @@ function resolveConfig(): RunConfig {
   const repoRoot = resolve(__dirname, "..", "..", "..");
   const dataDir = join(repoRoot, "data");
   const libraryJsonPath = join(dataDir, "library.json");
+  const cacheJsonPath = join(dataDir, ".library-cache.json");
 
   return {
     ffmpegPath,
@@ -132,6 +133,7 @@ async function processTrack(
   job: TrackJob,
   config: RunConfig,
   cacheMap: ReturnType<typeof loadCache>,
+  libraryEntries: ReturnType<typeof loadLibraryEntries>,
   doneRef: { count: number },
   total: number
 ): Promise<JobResult> {
@@ -155,16 +157,43 @@ async function processTrack(
 
   // Cache check (skip if --force).
   if (!config.force) {
-    const cached = isCached(slug, wavPath, mp3AbsPath, cacheMap);
-    if (cached) {
+    if (isCached(slug, wavPath, mp3AbsPath, cacheMap)) {
       doneRef.count++;
       progress(doneRef.count, total, title, "skipped");
       const stat = statSync(wavPath);
+      // Use the previous entry data from library.json if available.
+      const prevEntry = libraryEntries.get(slug);
+      if (prevEntry && typeof prevEntry === "object") {
+        return {
+          slug,
+          skipped: true,
+          entry: {
+            id: slug,
+            slug,
+            title: String(prevEntry.title ?? title),
+            seconds: Number(prevEntry.seconds ?? 0),
+            talkup_seconds: Number(prevEntry.talkup_seconds ?? 0),
+            lufs: Number(prevEntry.lufs ?? 0),
+            made_at: String(prevEntry.made_at ?? new Date().toISOString()),
+            mp3: `/audio/${slug}.mp3`,
+            source_size: stat.size,
+            source_mtime: stat.mtimeMs,
+          },
+        };
+      }
+      // Fallback if no previous entry found (shouldn't happen if cache checks pass)
       return {
         slug,
         skipped: true,
         entry: {
-          ...cached,
+          id: slug,
+          slug,
+          title,
+          seconds: 0,
+          talkup_seconds: 0,
+          lufs: 0,
+          made_at: new Date().toISOString(),
+          mp3: `/audio/${slug}.mp3`,
           source_size: stat.size,
           source_mtime: stat.mtimeMs,
         },
@@ -217,7 +246,7 @@ async function processTrack(
     talkup_seconds: Math.round(analysis.talkupSeconds * 100) / 100,
     lufs: Math.round(analysis.lufs * 100) / 100,
     made_at: analysis.madeAt,
-    mp3: mp3RelPath,
+    mp3: `/audio/${slug}.mp3`,
     source_size: stat.size,
     source_mtime: stat.mtimeMs,
   };
@@ -228,7 +257,8 @@ async function processTrack(
 async function runPool(
   jobs: TrackJob[],
   config: RunConfig,
-  cacheMap: ReturnType<typeof loadCache>
+  cacheMap: ReturnType<typeof loadCache>,
+  libraryEntries: ReturnType<typeof loadLibraryEntries>
 ): Promise<JobResult[]> {
   const results: JobResult[] = new Array(jobs.length);
   const doneRef = { count: 0 };
@@ -242,6 +272,7 @@ async function runPool(
         jobs[i],
         config,
         cacheMap,
+        libraryEntries,
         doneRef,
         total
       );
@@ -299,11 +330,13 @@ async function main(): Promise<void> {
     `station-library: ${total} tracks to process (concurrency=${config.concurrency}${config.force ? ", force" : ""}${config.dryRun ? ", dry-run" : ""})\n`
   );
 
-  // Load cache.
-  const cacheMap = loadCache(config.libraryJsonPath);
+  // Load cache and existing library entries.
+  const cacheJsonPath = join(config.dataDir, ".library-cache.json");
+  const cacheMap = loadCache(cacheJsonPath);
+  const libraryEntries = loadLibraryEntries(config.libraryJsonPath);
 
   // Process tracks.
-  const results = await runPool(jobs, config, cacheMap);
+  const results = await runPool(jobs, config, cacheMap, libraryEntries);
 
   clearProgress();
 
@@ -326,10 +359,11 @@ async function main(): Promise<void> {
     }
   }
 
-  // Write library.json (Task 15).
+  // Write library.json and cache file (Task 15).
   if (!config.dryRun && entries.length > 0) {
     try {
-      writeLibrary(entries, config.libraryJsonPath);
+      const cacheJsonPath = join(config.dataDir, ".library-cache.json");
+      writeLibrary(entries, config.libraryJsonPath, cacheJsonPath);
       process.stdout.write(
         `[library] Wrote ${entries.length} entries to ${config.libraryJsonPath}\n`
       );

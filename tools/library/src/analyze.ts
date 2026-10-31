@@ -11,13 +11,30 @@ import { spawn } from "child_process";
 import { statSync } from "fs";
 import type { AnalysisResult } from "./types.js";
 
-const TALKUP_RISE_THRESHOLD_DB = 6; // dB rise to count as "the post"
-const TALKUP_SAFETY_MARGIN_S = 0.5;
-const TALKUP_MIN_ONSET_S = 2; // onset before this -> return 0
-const TALKUP_CAP_S = 30;
-const TALKUP_FALLBACK_S = 8;
-const ANALYSIS_WINDOW_S = 60; // only look at first 60 s for talk-up
-const FRAME_SIZE_S = 0.05; // astats uses ~50 ms frames at default
+// --- Talk-up detection constants ---
+// RMS is measured in 0.5 s windows at 22050 Hz stereo.
+const TALKUP_WINDOW_S         = 0.5;
+// Baseline is computed from the first N windows' median.
+const TALKUP_BASELINE_S       = 8.0;   // 16 windows
+// Look-ahead width: for each candidate position, take the median of
+// the next TALKUP_LOOKAHEAD_S seconds. If that median exceeds
+// baseline + TALKUP_RISE_DB, scan forward to find the first window
+// in the look-ahead that crosses (baseline + TALKUP_RISE_DB - TALKUP_TOLERANCE_DB).
+const TALKUP_LOOKAHEAD_S      = 2.0;   // 4 windows
+// How far above the baseline the look-ahead median must sit.
+const TALKUP_RISE_DB          = 4.0;
+// Tolerance when pinpointing the first window inside the look-ahead block.
+const TALKUP_TOLERANCE_DB     = 1.0;
+// Don't scan before this many seconds into the track.
+const TALKUP_MIN_SCAN_S       = 5.0;   // 10 windows
+// Subtract from onset timestamp before returning.
+const TALKUP_SAFETY_MARGIN_S  = 0.5;
+// Hard cap on the returned value.
+const TALKUP_CAP_S            = 30;
+// Returned when no sustained rise is found.
+const TALKUP_FALLBACK_S       = 8;
+// Only analyse the first N seconds.
+const ANALYSIS_WINDOW_S       = 45;
 
 interface LoudnormJson {
   input_i: string;
@@ -125,8 +142,8 @@ async function measureLoudness(
 
 /**
  * Run the talk-up detector on `wavPath`.
- * Uses ffmpeg astats to export per-frame RMS energy, then finds the first
- * sharp rise.
+ * Extracts raw PCM samples via ffmpeg and applies the baseline+sustained-rise
+ * algorithm via `analyzePcmForTalkup`.
  *
  * Returns talkup_seconds clamped to [0, 30], falling back to 8 s.
  */
@@ -135,116 +152,167 @@ async function detectTalkup(
   wavPath: string
 ): Promise<number> {
   return new Promise((resolve) => {
-    // Limit analysis to first ANALYSIS_WINDOW_S seconds.
+    // Extract raw 32-bit float samples at 22050 Hz stereo, limit to ANALYSIS_WINDOW_S.
     const args = [
       "-t",
       String(ANALYSIS_WINDOW_S),
       "-i",
       wavPath,
       "-af",
-      "aresample=22050,astats=metadata=1:reset=1",
+      "aresample=22050",
+      "-ac",
+      "2",
       "-f",
-      "null",
+      "f32le",
       "-",
     ];
 
     const proc = spawn(ffmpegPath, args, {
       windowsHide: true,
-      stdio: ["ignore", "ignore", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
-    let stderr = "";
-    proc.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
+    const chunks: Buffer[] = [];
+
+    proc.stdout.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
     });
 
-    proc.on("close", () => {
-      const result = parseTalkup(stderr);
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        process.stderr.write(
+          `[analyze] ffmpeg PCM extraction failed (exit ${code}), using fallback ${TALKUP_FALLBACK_S}s\n`
+        );
+        resolve(TALKUP_FALLBACK_S);
+        return;
+      }
+
+      const samples = Buffer.concat(chunks);
+      const result = analyzePcmForTalkup(samples);
       resolve(result);
     });
 
     proc.on("error", () => {
-      // Analysis failure -> use fallback.
-      process.stderr.write(`[analyze] talk-up detection failed, using fallback ${TALKUP_FALLBACK_S}s\n`);
+      process.stderr.write(
+        `[analyze] ffmpeg PCM extraction error, using fallback ${TALKUP_FALLBACK_S}s\n`
+      );
       resolve(TALKUP_FALLBACK_S);
     });
   });
 }
 
 /**
- * Parse astats stderr output and compute talkup_seconds.
- * Exported for testing.
+ * Analyze raw 32-bit float PCM samples (22050 Hz stereo, interleaved L/R)
+ * to detect the talk-up onset.
+ *
+ * Algorithm (baseline + look-ahead median):
+ *   1. Compute RMS in TALKUP_WINDOW_S (0.5 s) windows (22050 floats each for stereo).
+ *   2. Baseline = median of the first TALKUP_BASELINE_S (8 s) of windows.
+ *   3. Scan forward from TALKUP_MIN_SCAN_S (5 s). At each position i, take the
+ *      median of the next TALKUP_LOOKAHEAD_S (2 s) of windows. When that median
+ *      exceeds baseline + TALKUP_RISE_DB (4 dB), walk forward through the block
+ *      to find the first window whose raw dB >=
+ *      baseline + TALKUP_RISE_DB - TALKUP_TOLERANCE_DB (3 dB). That window is the onset.
+ *   4. Return onset - TALKUP_SAFETY_MARGIN_S, clamped to [0, TALKUP_CAP_S].
+ *   5. Fallback: TALKUP_FALLBACK_S (8) if no trigger is found.
+ *
+ * Exported for unit and property testing.
+ *
+ * @param samples Buffer of 32-bit little-endian floats at 22050 Hz STEREO
+ *                (2 floats per frame: L then R).
+ * @param channels Number of channels in the PCM data (default 2).
+ * @returns talkup_seconds.
  */
-export function parseTalkup(stderr: string): number {
-  // astats emits lines like:
-  //   lavfi.astats.Overall.RMS_level=-inf
-  //   lavfi.astats.1.RMS_level=-23.5
-  // We also see pts_time lines that tell us the frame timestamp:
-  //   pts_time:0.046440
-  // Or from the metadata filter:
-  //   frame:0 pts:1024 pts_time:0.046440
+export function analyzePcmForTalkup(
+  samples: Buffer,
+  channels = 2
+): number {
+  const SAMPLE_RATE    = 22050;
+  const WINDOW_SAMPLES = Math.round(TALKUP_WINDOW_S * SAMPLE_RATE * channels);
+  const BASELINE_WINS  = Math.round(TALKUP_BASELINE_S  / TALKUP_WINDOW_S); // 16
+  const LOOKAHEAD_WINS = Math.round(TALKUP_LOOKAHEAD_S / TALKUP_WINDOW_S); // 4
+  const MIN_SCAN_WINS  = Math.round(TALKUP_MIN_SCAN_S   / TALKUP_WINDOW_S); // 10
 
-  const rmsValues: Array<{ time: number; rmsDb: number }> = [];
+  const numFloats = Math.floor(samples.length / 4);
 
-  const lines = stderr.split("\n");
-  let currentTime = 0;
-
-  for (const line of lines) {
-    const timeMatch = line.match(/pts_time:([\d.]+)/);
-    if (timeMatch) {
-      currentTime = parseFloat(timeMatch[1]);
-    }
-
-    // Match the overall RMS level from astats.
-    const rmsMatch = line.match(/lavfi\.astats\.(?:Overall|1)\.RMS_level=([^\s]+)/);
-    if (rmsMatch) {
-      const val = rmsMatch[1];
-      if (val === "-inf" || val === "nan") {
-        rmsValues.push({ time: currentTime, rmsDb: -80 });
-      } else {
-        const db = parseFloat(val);
-        if (!isNaN(db)) {
-          rmsValues.push({ time: currentTime, rmsDb: db });
-        }
-      }
-    }
-  }
-
-  if (rmsValues.length === 0) {
+  if (numFloats < WINDOW_SAMPLES * (BASELINE_WINS + LOOKAHEAD_WINS)) {
     process.stderr.write(
-      `[analyze] no RMS frames found, using fallback ${TALKUP_FALLBACK_S}s\n`
+      `[analyze] insufficient audio data, using fallback ${TALKUP_FALLBACK_S}s\n`
     );
     return TALKUP_FALLBACK_S;
   }
 
-  // Find the minimum RMS in any 4-second rolling window preceding the current
-  // frame, then detect the first frame where RMS exceeds that min by the
-  // threshold.
-  const WINDOW_FRAMES = Math.ceil(4 / FRAME_SIZE_S);
+  // --- Step 1: per-window RMS in dB ---
+  const windowRmsDb: number[] = [];
+  for (
+    let start = 0;
+    start + WINDOW_SAMPLES <= numFloats;
+    start += WINDOW_SAMPLES
+  ) {
+    let sumSq = 0;
+    for (let i = start; i < start + WINDOW_SAMPLES; i++) {
+      const s = samples.readFloatLE(i * 4);
+      sumSq += s * s;
+    }
+    const rms = Math.sqrt(sumSq / WINDOW_SAMPLES);
+    windowRmsDb.push(rms > 0 ? 20 * Math.log10(rms) : -100);
+  }
 
-  for (let i = 1; i < rmsValues.length; i++) {
-    const { time, rmsDb } = rmsValues[i];
-    const windowStart = Math.max(0, i - WINDOW_FRAMES);
-    const windowRms = rmsValues.slice(windowStart, i).map((r) => r.rmsDb);
-    const minRms = Math.min(...windowRms);
+  if (windowRmsDb.length < BASELINE_WINS + MIN_SCAN_WINS) {
+    process.stderr.write(
+      `[analyze] too few windows (${windowRmsDb.length}), using fallback ${TALKUP_FALLBACK_S}s\n`
+    );
+    return TALKUP_FALLBACK_S;
+  }
 
-    if (rmsDb - minRms >= TALKUP_RISE_THRESHOLD_DB) {
-      // Found the post.
-      const onset = time;
-      if (onset < TALKUP_MIN_ONSET_S) {
-        return 0;
+  // --- Step 2: baseline = median of first BASELINE_WINS windows ---
+  const baselineSlice = windowRmsDb.slice(0, BASELINE_WINS).slice().sort((a, b) => a - b);
+  const bMid = Math.floor(baselineSlice.length / 2);
+  const baseline =
+    baselineSlice.length % 2 === 0
+      ? (baselineSlice[bMid - 1] + baselineSlice[bMid]) / 2
+      : baselineSlice[bMid];
+
+  const riseThresh  = baseline + TALKUP_RISE_DB;
+  const crossThresh = riseThresh - TALKUP_TOLERANCE_DB;
+
+  // --- Step 3: scan from MIN_SCAN_WINS ---
+  for (
+    let i = MIN_SCAN_WINS;
+    i + LOOKAHEAD_WINS <= windowRmsDb.length;
+    i++
+  ) {
+    const ahead = windowRmsDb.slice(i, i + LOOKAHEAD_WINS).slice().sort((a, b) => a - b);
+    const aMid = Math.floor(ahead.length / 2);
+    const aheadMed =
+      ahead.length % 2 === 0
+        ? (ahead[aMid - 1] + ahead[aMid]) / 2
+        : ahead[aMid];
+
+    if (aheadMed >= riseThresh) {
+      // Walk forward to find the first window actually crossing the softer threshold.
+      let onsetIdx = i;
+      for (let j = i; j < i + LOOKAHEAD_WINS; j++) {
+        if (windowRmsDb[j] >= crossThresh) {
+          onsetIdx = j;
+          break;
+        }
       }
-      const talkup = Math.min(
-        TALKUP_CAP_S,
-        Math.max(0, onset - TALKUP_SAFETY_MARGIN_S)
+
+      const onsetS  = onsetIdx * TALKUP_WINDOW_S;
+      const talkup  = Math.min(TALKUP_CAP_S, Math.max(0, onsetS - TALKUP_SAFETY_MARGIN_S));
+      process.stderr.write(
+        `[analyze] talkup onset ${onsetS.toFixed(2)}s` +
+        ` (look-ahead median ${aheadMed.toFixed(1)}dB, baseline ${baseline.toFixed(1)}dB,` +
+        ` rise ${(aheadMed - baseline).toFixed(1)}dB) -> ${talkup.toFixed(2)}s\n`
       );
       return Math.round(talkup * 100) / 100;
     }
   }
 
-  // No detectable rise -> fallback.
   process.stderr.write(
-    `[analyze] no energy rise detected, using fallback ${TALKUP_FALLBACK_S}s\n`
+    `[analyze] no talkup rise found (baseline ${baseline.toFixed(1)}dB),` +
+    ` using fallback ${TALKUP_FALLBACK_S}s\n`
   );
   return TALKUP_FALLBACK_S;
 }
