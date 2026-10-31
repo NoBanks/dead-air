@@ -11,3 +11,10 @@ Thumbs.db
 *.wav
 *.mp3
 *.flac
+
+# tools/library build artifacts
+tools/library/dist/
+tools/library/node_modules/
+
+# generated data artifacts
+data/library.json

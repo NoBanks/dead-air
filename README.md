@@ -22,6 +22,25 @@ Built for Kiroween 2026 (Resurrection category). Built with [Kiro](https://kiro.
 
 There is no 24/7 streaming server. The station is a schedule laid on a clock. Every listener's browser asks "what is playing right now?", gets the current segment plus its offset, and plays from that point. Everyone hears the same thing at the same moment, so it feels live.
 
+## Building the library
+
+The station reads from a music library built offline with `tools/library`, a TypeScript CLI that encodes WAVs to loudness-normalized MP3s and writes a JSON index.
+
+```bash
+cd tools/library
+npm install
+npm run build
+
+# Set env vars:
+export FFMPEG=/path/to/ffmpeg
+export CSV_PATH=/path/to/tracks.csv
+export LIBRARY_OUT=/path/to/mp3/output
+
+npm start
+```
+
+See `tools/library/README.md` for details.
+
 ## Status
 
 Work in progress. Build started October 30, 2026.
