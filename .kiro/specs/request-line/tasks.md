@@ -6,11 +6,11 @@ Status key: all tasks are [ ] (not started).
 
 ## Server tasks
 
-- [ ] **S-1: Add `Insert` type to `station/src/core/types.ts`**
+- [x] **S-1: Add `Insert` type to `station/src/core/types.ts`**
   Add `Insert` interface (`airAt`, `clip`, `songId`) and update `ClipKind` with `"request"` if needed.
   _Covers: P1, P2 (type safety for generateDay extension)_
 
-- [ ] **S-2: Extend `generateDay` to accept and consume inserts**
+- [x] **S-2: Extend `generateDay` to accept and consume inserts**
   Add optional `inserts?: Insert[]` param. At each break, check whether the next unconsumed insert's `airAt <= cursor`; if so, use its clip and inject its song (or the next queued song if the requested one already aired). Do not alter any segment before `airAt`.
   _Covers: P1 (no retroactive change), P2 (tiling preserved), P3 (at most one request per break)_
 
@@ -72,15 +72,15 @@ Status key: all tasks are [ ] (not started).
 
 ## Test tasks
 
-- [ ] **T-1: `generateDay` insert property test** (`station/tests/schedule.property.test.ts`)
+- [x] **T-1: `generateDay` insert property test** (`station/tests/schedule.property.test.ts`)
   Property: for any valid `inserts` list, `generateDay` with inserts produces the same segments before the first `airAt` as `generateDay` without inserts.
   _Covers: P1_
 
-- [ ] **T-2: Tiling-with-inserts test** (`station/tests/schedule.property.test.ts`)
+- [x] **T-2: Tiling-with-inserts test** (`station/tests/schedule.property.test.ts`)
   Property: `assertTiling` passes for any `generateDay` call with 0-5 random inserts.
   _Covers: P2_
 
-- [ ] **T-3: One-request-per-break unit test** (`station/tests/schedule.property.test.ts`)
+- [x] **T-3: One-request-per-break unit test** (`station/tests/schedule.property.test.ts`)
   Assert that no two consecutive voice segments both have `clipKind == "request"` and that all pairs of request-clip start times are >= 600 000 ms apart.
   _Covers: P3_
 
@@ -107,3 +107,5 @@ Status key: all tasks are [ ] (not started).
 - [ ] **T-9: Rate limit tests** (`station/tests/request-handler.test.ts`)
   Assert 429 on the 2nd POST from the same IP within 10 minutes, and on the 31st POST station-wide within 60 minutes.
   _Covers: REQ-10, REQ-11_
+
+Note (Claude, Nov 1): S-2 threads inserts through Voicebank.inserts so nowPlaying/schedule need no signature change. T-1..T-3 live in station/tests/request.property.test.ts.

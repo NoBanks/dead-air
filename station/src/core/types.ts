@@ -23,7 +23,10 @@ export type ClipKind =
   | "marty"
   | "sponsor"
   | "caller"
-  | "signal";
+  | "signal"
+  | "request"
+  | "midnight"
+  | "signoff";
 
 // Voice clip from voicebank
 export interface VoiceClip {
@@ -40,6 +43,15 @@ export interface VoiceClip {
 // Voicebank data
 export interface Voicebank {
   clips: VoiceClip[];
+  // Rendered listener requests (request-line spec). Each airs at the first break at or after airAt.
+  inserts?: Insert[];
+}
+
+// A listener request read by Dead John, followed by the song they asked for.
+export interface Insert {
+  airAt: number;   // UTC ms, at least 5 minutes after it was rendered
+  clip: VoiceClip; // kind "request", at most 30 s
+  songId?: string; // played next unless it already aired today
 }
 
 // Featured song entry

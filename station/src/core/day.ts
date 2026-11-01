@@ -119,7 +119,15 @@ export function generateDay(
   const usedToday = new Set<string>();
   let reshuffleCount = 0;
 
+  // A listener's requested song jumps the queue once (if it has not aired today).
+  let requestedSong: Track | null = null;
+
   function dequeue(): Track {
+    if (requestedSong) {
+      const t = requestedSong;
+      requestedSong = null;
+      if (!usedToday.has(t.id)) return t;
+    }
     while (songQueue.length > 0) {
       const t = songQueue.shift()!;
       if (!usedToday.has(t.id)) return t;
@@ -167,6 +175,11 @@ export function generateDay(
   let placed314 = !clip314;
   let shortNumbersHour = -1;
   let breakCount = 0;
+  // Requests due today, in air order; consumed one per break.
+  const inserts = (voicebank.inserts ?? [])
+    .filter((i) => i.airAt < dayEnd && i.airAt >= dayStart)
+    .sort((a, b) => a.airAt - b.airAt);
+  let nextInsert = 0;
   // Midnight: Dead John hands the mic to the numbers station and comes back after it.
   const handoff = voiceMap.get("midnight_handoff");
   const comeback = voiceMap.get("midnight_return");
@@ -314,7 +327,11 @@ export function generateDay(
       breakCount++;
       const sponsors = breakPool(cursor).filter((c) => c.kind === "sponsor" && c.id !== rotation.lastId());
       const pool = breakCount % 3 === 0 && sponsors.length > 0 ? sponsors : breakPool(cursor);
-      const clip = rotation.pickOrOldest(pool, cursor, CLIP_COOLDOWN_MS.break);
+      // A listener request that is due takes this break, and its song plays next.
+      // Checked before any PRNG use so nothing before airAt can change.
+      const due = nextInsert < inserts.length && inserts[nextInsert].airAt <= cursor ? inserts[nextInsert++] : null;
+      if (due?.songId) requestedSong = library.find((t) => t.id === due.songId) ?? null;
+      const clip = due ? due.clip : rotation.pickOrOldest(pool, cursor, CLIP_COOLDOWN_MS.break);
       if (clip) {
         const clipEnd = cursor + Math.round(clip.seconds * 1000);
         if (clipEnd <= airEnd) {
