@@ -82,7 +82,8 @@
    "kind": "break",
    "text": "It's fourteen past three. It's always fourteen past three somewhere. Usually here.",
    "seconds": 5.5,
-   "file": "/voice/time_314.mp3"
+   "file": "/voice/time_314.mp3",
+   "air": "0314"
   },
   {
    "id": "time_late",
@@ -117,7 +118,8 @@
    "kind": "break",
    "text": "Weather for the overnight. Fog rolling in off nothing. Low of never. Bring a coat anyway.",
    "seconds": 7.42,
-   "file": "/voice/weather_01.mp3"
+   "file": "/voice/weather_01.mp3",
+   "air": "night"
   },
   {
    "id": "weather_02",
@@ -131,7 +133,8 @@
    "kind": "break",
    "text": "Clear skies tonight. You can see every star. Some of them went out a long time ago. Same as me.",
    "seconds": 7.66,
-   "file": "/voice/weather_03.mp3"
+   "file": "/voice/weather_03.mp3",
+   "air": "night"
   },
   {
    "id": "request_open",
@@ -152,7 +155,8 @@
    "kind": "request",
    "text": "That one's for you. Wherever you are tonight.",
    "seconds": 3.58,
-   "file": "/voice/request_close.mp3"
+   "file": "/voice/request_close.mp3",
+   "air": "night"
   },
   {
    "id": "sponsor_01",
@@ -166,7 +170,8 @@
    "kind": "sponsor",
    "text": "This hour brought to you by Orpheum Drive In. Tonight's double feature starts the minute you stop looking for it.",
    "seconds": 6.78,
-   "file": "/voice/sponsor_02.mp3"
+   "file": "/voice/sponsor_02.mp3",
+   "air": "night"
   },
   {
    "id": "sponsor_03",

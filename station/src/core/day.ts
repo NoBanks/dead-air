@@ -8,6 +8,7 @@ import type {
   NumbersSegment,
   EbsSegment,
   DaySchedule,
+  VoiceClip,
 } from "./types.js";
 import { mulberry32, daySeed, hashTrackId } from "./prng.js";
 import {
@@ -18,6 +19,51 @@ import {
 
 // Kinds that count as a "break" body clip.
 const BREAK_KINDS = new Set(["drop", "break", "storm", "marty", "sponsor", "caller"]);
+
+// A clip may not air again until this long after it last aired.
+// Talk-ups are the most noticeable repeat, so they rest the longest per clip
+// and never land on back-to-back songs.
+export const CLIP_COOLDOWN_MS = {
+  id: 3 * 3_600_000,
+  break: 90 * 60_000,
+  talkup: 60 * 60_000,
+} as const;
+
+/**
+ * Remembers when each clip last aired so the day never repeats a line too soon.
+ * Picks randomly (day PRNG) among clips that are off cooldown.
+ */
+function makeRotation(prng: () => number) {
+  const lastAired = new Map<string, number>();
+  let lastClipId: string | null = null;
+
+  function rested(clips: VoiceClip[], now: number, cooldownMs: number): VoiceClip[] {
+    return clips.filter((c) => {
+      const t = lastAired.get(c.id);
+      return t === undefined || now - t >= cooldownMs;
+    });
+  }
+
+  return {
+    /** A rested clip, or undefined when every candidate aired too recently. */
+    pick(clips: VoiceClip[], now: number, cooldownMs: number): VoiceClip | undefined {
+      const ok = rested(clips, now, cooldownMs);
+      return ok.length > 0 ? pickOne(prng, ok) : undefined;
+    },
+    /** Like pick, but when nothing is rested take the longest-rested clip that was not the last one aired. */
+    pickOrOldest(clips: VoiceClip[], now: number, cooldownMs: number): VoiceClip | undefined {
+      const ok = rested(clips, now, cooldownMs);
+      if (ok.length > 0) return pickOne(prng, ok);
+      const others = clips.filter((c) => c.id !== lastClipId);
+      const pool = others.length > 0 ? others : clips;
+      return [...pool].sort((a, b) => (lastAired.get(a.id) ?? 0) - (lastAired.get(b.id) ?? 0))[0];
+    },
+    aired(clipId: string, at: number): void {
+      lastAired.set(clipId, at);
+      lastClipId = clipId;
+    },
+  };
+}
 
 /**
  * Generate one full station day as a strict timeline tile.
@@ -94,6 +140,30 @@ export function generateDay(
   const featuredMap = new Map(featured.map((f) => [f.song_id, f]));
   const voiceMap = new Map(voicebank.clips.map((c) => [c.id, c]));
 
+  // --- Clip rotation (no line repeats too soon) ----------------------------
+  const rotation = makeRotation(prng);
+  const idClips = voicebank.clips.filter((c) => c.kind === "id");
+  const breakClips = voicebank.clips.filter((c) => BREAK_KINDS.has(c.kind) && c.air !== "0314");
+  const isNight = (ms: number) => {
+    const h = stationHourOf(ms);
+    return h >= 19 || h < 6;
+  };
+  const breakPool = (ms: number) => breakClips.filter((c) => c.air !== "night" || isNight(ms));
+  // Dead John just spoke (break or talk-up): let the next song start clean.
+  let djJustSpoke = false;
+
+  // --- Time-pinned lines ---------------------------------------------------
+  // 3:14 AM LA: first song boundary inside 03:14 to 03:34.
+  const clip314 = voicebank.clips.find((c) => c.air === "0314");
+  let hour3Start = dayStart;
+  while (stationHourOf(hour3Start) !== 3 && hour3Start < dayStart + 6 * 3_600_000) hour3Start += 3_600_000;
+  const t314 = hour3Start + 14 * 60_000;
+  let placed314 = !clip314;
+  // Midnight: Dead John hands the mic to the numbers station and comes back after it.
+  const handoff = voiceMap.get("midnight_handoff");
+  const comeback = voiceMap.get("midnight_return");
+  const airEnd = dayEnd - (handoff ? Math.round(handoff.seconds * 1000) : 0);
+
   // --- Hourly ID tracking --------------------------------------------------
   let lastHour = stationHourOf(dayStart);
   let pendingId = false;
@@ -103,9 +173,24 @@ export function generateDay(
   const numbersEnd = cursor + 60_000;
   segments.push({ kind: "numbers", startMs: cursor, endMs: numbersEnd } as NumbersSegment);
   cursor = numbersEnd;
+  if (comeback) {
+    const end = cursor + Math.round(comeback.seconds * 1000);
+    segments.push({
+      kind: "voice",
+      clipId: comeback.id,
+      clipKind: comeback.kind,
+      text: comeback.text,
+      file: comeback.file,
+      startMs: cursor,
+      endMs: end,
+    } as VoiceSegment);
+    cursor = end;
+    djJustSpoke = true;
+  }
 
   // --- Main loop -----------------------------------------------------------
-  while (cursor < dayEnd) {
+  // Everything before airEnd; the midnight handoff (if any) fills [airEnd, dayEnd).
+  while (cursor < airEnd) {
     // 1. Hour crossing: set pendingId
     const currentHour = stationHourOf(cursor);
     if (currentHour !== lastHour) {
@@ -115,11 +200,12 @@ export function generateDay(
 
     // 2. Discharge pendingId with an "id" clip
     if (pendingId) {
-      const idClips = voicebank.clips.filter((c) => c.kind === "id");
-      if (idClips.length > 0) {
-        const clip = pickOne(prng, idClips);
+      const clip = rotation.pickOrOldest(idClips, cursor, CLIP_COOLDOWN_MS.id);
+      if (clip) {
         const clipEnd = cursor + Math.round(clip.seconds * 1000);
-        if (clipEnd <= dayEnd) {
+        if (clipEnd <= airEnd) {
+          rotation.aired(clip.id, cursor);
+          djJustSpoke = true;
           segments.push({
             kind: "voice",
             clipId: clip.id,
@@ -133,17 +219,38 @@ export function generateDay(
         }
       }
       pendingId = false;
-      if (cursor >= dayEnd) break;
+      if (cursor >= airEnd) break;
+    }
+
+    // 2b. 3:14 AM line, once, at the first boundary in its 20-minute window
+    if (!placed314 && cursor >= t314) {
+      placed314 = true;
+      const clipEnd = cursor + Math.round(clip314!.seconds * 1000);
+      if (cursor < t314 + 20 * 60_000 && clipEnd <= airEnd) {
+        segments.push({
+          kind: "voice",
+          clipId: clip314!.id,
+          clipKind: clip314!.kind,
+          text: clip314!.text,
+          file: clip314!.file,
+          startMs: cursor,
+          endMs: clipEnd,
+        } as VoiceSegment);
+        rotation.aired(clip314!.id, cursor);
+        cursor = clipEnd;
+        djJustSpoke = true;
+        if (cursor >= airEnd) break;
+      }
     }
 
     // 3. EBS: insert as soon as cursor reaches or passes the target time
     if (!ebsPlaced && cursor >= ebsTargetMs) {
       const ebsEnd = cursor + 30_000;
-      if (ebsEnd <= dayEnd) {
+      if (ebsEnd <= airEnd) {
         segments.push({ kind: "ebs", startMs: cursor, endMs: ebsEnd } as EbsSegment);
         cursor = ebsEnd;
         ebsPlaced = true;
-        if (cursor >= dayEnd) break;
+        if (cursor >= airEnd) break;
         continue; // recheck hour / id after EBS
       } else {
         // EBS doesn't fit before dayEnd; place it earlier or skip
@@ -155,11 +262,13 @@ export function generateDay(
     const song = dequeue();
     const songStart = cursor;
     const rawSongEnd = songStart + Math.round(song.seconds * 1000);
-    const songEnd = Math.min(rawSongEnd, dayEnd);
+    const songEnd = Math.min(rawSongEnd, airEnd);
     const truncated = songEnd < rawSongEnd;
 
     // 5. Talk-up metadata (does not affect timeline)
-    const talkup = assignTalkup(song, featuredMap, voiceMap, voicebank, prng);
+    const talkup = assignTalkup(song, songStart, featuredMap, voiceMap, voicebank, rotation, djJustSpoke);
+    if (talkup) rotation.aired(talkup.clipId, songStart);
+    djJustSpoke = !!talkup;
 
     segments.push({
       kind: "song",
@@ -176,15 +285,16 @@ export function generateDay(
     cursor = songEnd;
     songsSinceBreak++;
 
-    if (truncated || cursor >= dayEnd) break;
+    if (truncated || cursor >= airEnd) break;
 
     // 6. Break
     if (songsSinceBreak >= breakCountdown) {
-      const breakClips = voicebank.clips.filter((c) => BREAK_KINDS.has(c.kind));
-      if (breakClips.length > 0) {
-        const clip = pickOne(prng, breakClips);
+      const clip = rotation.pickOrOldest(breakPool(cursor), cursor, CLIP_COOLDOWN_MS.break);
+      if (clip) {
         const clipEnd = cursor + Math.round(clip.seconds * 1000);
-        if (clipEnd <= dayEnd) {
+        if (clipEnd <= airEnd) {
+          rotation.aired(clip.id, cursor);
+          djJustSpoke = true;
           segments.push({
             kind: "voice",
             clipId: clip.id,
@@ -199,8 +309,22 @@ export function generateDay(
       }
       breakCountdown = pickOne(prng, [2, 3]);
       songsSinceBreak = 0;
-      if (cursor >= dayEnd) break;
+      if (cursor >= airEnd) break;
     }
+  }
+
+  // --- Midnight handoff: Dead John steps away right before the numbers station.
+  if (handoff && cursor < dayEnd) {
+    segments.push({
+      kind: "voice",
+      clipId: handoff.id,
+      clipKind: handoff.kind,
+      text: handoff.text,
+      file: handoff.file,
+      startMs: cursor,
+      endMs: dayEnd,
+    } as VoiceSegment);
+    cursor = dayEnd;
   }
 
   // If EBS was never placed (e.g. day ended before target), force it at
@@ -230,10 +354,12 @@ export function generateDay(
 
 function assignTalkup(
   song: Track,
+  songStart: number,
   featuredMap: Map<string, FeaturedEntry>,
-  voiceMap: Map<string, import("./types.js").VoiceClip>,
+  voiceMap: Map<string, VoiceClip>,
   voicebank: Voicebank,
-  prng: () => number
+  rotation: ReturnType<typeof makeRotation>,
+  djJustSpoke: boolean
 ): SongSegment["talkup"] {
   const talkupWindowMs = song.talkup_seconds * 1000;
   if (talkupWindowMs <= 0) return undefined;
@@ -256,13 +382,14 @@ function assignTalkup(
     }
   }
 
-  // Non-featured: pick any talkup clip that fits.
+  // Non-featured: only when Dead John did not just speak, and only a rested clip that fits.
+  if (djJustSpoke) return undefined;
   const safeMs = talkupWindowMs - 500; // 0.5 s safety margin
   const candidates = voicebank.clips.filter(
     (c) => c.kind === "talkup" && c.seconds * 1000 <= safeMs
   );
-  if (candidates.length === 0) return undefined;
-  const clip = pickOne(prng, candidates);
+  const clip = rotation.pick(candidates, songStart, CLIP_COOLDOWN_MS.talkup);
+  if (!clip) return undefined;
   return {
     clipId: clip.id,
     file: clip.file,

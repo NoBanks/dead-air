@@ -33,6 +33,8 @@ export interface VoiceClip {
   seconds: number;
   file: string;
   song_id?: string;
+  // "night": only airs 7 PM to 6 AM LA. "0314": airs once a day, at 3:14 AM LA, never at random.
+  air?: "night" | "0314";
 }
 
 // Voicebank data

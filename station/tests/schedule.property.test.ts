@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import * as fc from "fast-check";
-import { generateDay } from "../src/core/day.js";
+import { generateDay, CLIP_COOLDOWN_MS } from "../src/core/day.js";
 import type { Track, Voicebank, SongSegment, VoiceSegment } from "../src/core/types.js";
 import {
   stationDayStart,
@@ -256,6 +256,101 @@ describe("P-6: Talk-up never past the post", () => {
         Math.abs(actualEndMs - expectedEndMs),
         `talkup for ${song.trackId} ends at wrong time`
       ).toBeLessThanOrEqual(1); // allow 1 ms rounding
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P-10: No voice line repeats too soon (Ryan heard "Don't touch that dial" twice in a row)
+// ---------------------------------------------------------------------------
+describe("P-10: Clip rotation", () => {
+  const libWithTalkup = makeFakeLibrary(1100).map((t) => ({ ...t, talkup_seconds: 15 }));
+
+  function airings(dayIndex: number) {
+    const day = generateDay(dayIndex, libWithTalkup, VOICEBANK, [], EPOCH_MS);
+    const out: { id: string; kind: string; at: number; songIdx: number }[] = [];
+    let songIdx = 0;
+    for (const seg of day.segments) {
+      if (seg.kind === "voice") {
+        const v = seg as VoiceSegment;
+        out.push({ id: v.clipId, kind: v.clipKind, at: v.startMs, songIdx });
+      } else if (seg.kind === "song") {
+        songIdx++;
+        const s = seg as SongSegment;
+        if (s.talkup) out.push({ id: s.talkup.clipId, kind: "talkup", at: s.startMs, songIdx });
+      }
+    }
+    return out;
+  }
+
+  it("a talk-up clip never airs again within its cooldown, and never on back-to-back songs", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 400 }), (d) => {
+        const talkups = airings(d).filter((a) => a.kind === "talkup");
+        for (let i = 1; i < talkups.length; i++) {
+          expect(talkups[i].songIdx - talkups[i - 1].songIdx).toBeGreaterThan(1);
+          for (let j = 0; j < i; j++) {
+            if (talkups[j].id === talkups[i].id) {
+              expect(talkups[i].at - talkups[j].at).toBeGreaterThanOrEqual(CLIP_COOLDOWN_MS.talkup);
+            }
+          }
+        }
+      }),
+      { numRuns: 30 }
+    );
+  });
+
+  it("the same voice clip never airs twice in a row", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 400 }), (d) => {
+        const all = airings(d);
+        for (let i = 1; i < all.length; i++) {
+          expect(all[i].id, `clip ${all[i].id} aired back to back`).not.toBe(all[i - 1].id);
+        }
+      }),
+      { numRuns: 30 }
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P-11: Time-pinned lines air only when they make sense
+// ---------------------------------------------------------------------------
+describe("P-11: Time-pinned lines", () => {
+  const TIMED: Voicebank = {
+    clips: [
+      ...VOICEBANK.clips,
+      { id: "time_314", kind: "break", text: "It's fourteen past three.", seconds: 3, file: "/voice/time_314.mp3", air: "0314" },
+      { id: "weather_night", kind: "break", text: "Weather for the overnight.", seconds: 3, file: "/voice/w.mp3", air: "night" },
+      { id: "midnight_handoff", kind: "midnight", text: "It's midnight.", seconds: 8, file: "/voice/mh.mp3" },
+      { id: "midnight_return", kind: "midnight", text: "I'm back.", seconds: 4, file: "/voice/mr.mp3" },
+    ],
+  };
+  const la = (ms: number) => {
+    const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(ms);
+    return { h: +p.find((x) => x.type === "hour")!.value, m: +p.find((x) => x.type === "minute")!.value };
+  };
+
+  it("3:14 line airs once, between 3:14 and 3:34 AM LA; night lines only 7 PM to 6 AM; midnight lines bracket the numbers station", () => {
+    for (const utcMs of [EPOCH_MS, NOV1_2026_MIDNIGHT_LA, MAR14_2027_MIDNIGHT_LA, EPOCH_MS + 40 * 86_400_000]) {
+      const d = stationDayIndex(utcMs, EPOCH_MS);
+      const day = generateDay(d, LIBRARY_1100, TIMED, [], EPOCH_MS);
+      const voices = day.segments.filter((s) => s.kind === "voice") as VoiceSegment[];
+
+      const at314 = voices.filter((v) => v.clipId === "time_314");
+      expect(at314.length).toBe(1);
+      const t = la(at314[0].startMs);
+      expect(t.h).toBe(3);
+      expect(t.m).toBeGreaterThanOrEqual(14);
+      expect(t.m).toBeLessThan(34);
+
+      for (const v of voices.filter((v) => v.clipId === "weather_night")) {
+        const h = la(v.startMs).h;
+        expect(h >= 19 || h < 6, `night line at hour ${h}`).toBe(true);
+      }
+
+      expect(day.segments[1]).toMatchObject({ kind: "voice", clipId: "midnight_return", startMs: day.startMs + 60_000 });
+      expect(day.segments[day.segments.length - 1]).toMatchObject({ kind: "voice", clipId: "midnight_handoff", endMs: day.endMs });
     }
   });
 });
