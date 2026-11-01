@@ -38,7 +38,9 @@ def main():
     meta = lambda s: json.load(open(p(s + ".json")))
 
     # A. Tune in: the last stretch of the sweep, the lock, the station.
-    lock = (meta("tune_in")["lock_ms"] - meta("tune_in")["start_ms"]) / 1000
+    sys.path.insert(0, D)
+    from mux import seen_at, LOCK_REGION
+    lock = seen_at(p("tune_in.mp4"), LOCK_REGION["tune_in"])  # the lock as seen on screen
     a0, a1 = max(0, lock - 12), lock + 14
     run("-ss", f"{a0:.2f}", "-to", f"{a1:.2f}", "-i", p("tune_in_sound.mp4"), "-vf", f"{V},{fades(a1-a0, 1.2)}",
         "-af", f"afade=t=in:d=1.2,afade=t=out:st={a1-a0-0.8:.2f}:d=0.8", *ENC, p("cut_a.mp4"))

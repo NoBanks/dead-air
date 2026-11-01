@@ -18,11 +18,36 @@ def run(*a):
     subprocess.run([FF, "-y", "-v", "error", *a], check=True, startupinfo=SI, creationflags=0x08000000)
 
 
+def seen_at(video, crop, jump=25):
+    """First time (s) a screen region brightens by `jump` luma: the lock as the viewer sees it.
+    The capture's wall-clock mark runs ahead of the picture (queued key events), so the picture decides."""
+    r = subprocess.run([FF, "-v", "error", "-i", video, "-vf",
+                        f"fps=12,crop={crop},signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-",
+                        "-f", "null", "NUL"], capture_output=True, text=True, startupinfo=SI, creationflags=0x08000000)
+    t, base = None, None
+    for line in r.stdout.splitlines():
+        if "pts_time:" in line:
+            t = float(line.rsplit("pts_time:", 1)[1])
+        elif "YAVG=" in line:
+            y = float(line.split("=", 1)[1])
+            base = y if base is None else base
+            if y - base >= jump:
+                return t
+    raise RuntimeError(f"no lock seen in {video}")
+
+
+# Screen regions in the 1920x1080 takes: the ON AIR lamp, and the left half of the SIGNAL meter.
+LOCK_REGION = {"tune_in": "120:50:910:75", "hidden": "260:10:380:433"}
+
+
 def main(scene):
     meta = json.load(open(os.path.join(D, scene + ".json")))
     video = os.path.join(D, scene + ".mp4")
-    total = (meta["end_ms"] - meta["start_ms"]) / 1000
-    lock = (meta["lock_ms"] - meta["start_ms"]) / 1000
+    total = float(subprocess.run([FF.replace("ffmpeg.exe", "ffprobe.exe"), "-v", "error", "-show_entries",
+                                  "format=duration", "-of", "csv=p=0", video], capture_output=True, text=True,
+                                 startupinfo=SI, creationflags=0x08000000).stdout)
+    lock = seen_at(video, LOCK_REGION[scene])
+    print(scene, "lock seen at", round(lock, 2), "s")
     out = os.path.join(D, scene + "_sound.mp4")
     tail = total - lock
 
