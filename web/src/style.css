@@ -451,6 +451,101 @@ footer {
   transform: translate(-50%, 0);
 }
 
+/* ---- Request line ----------------------------------------------------- */
+.rq-open {
+  width: min(720px, 100%);
+  margin-top: -10px;
+  font-family: "Special Elite", monospace;
+  letter-spacing: 0.12em;
+}
+
+.rq {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 22px;
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  background: linear-gradient(#17191b, #0b0c0d);
+  color: var(--ink);
+  box-shadow: 0 30px 80px #000;
+  scrollbar-color: #3a3530 transparent;
+}
+
+.lb {
+  scrollbar-color: #b9a682 transparent;
+}
+
+.rq::backdrop {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.rq .lb-x {
+  color: var(--muted);
+  border-color: var(--edge);
+}
+
+.rq-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-family: "Special Elite", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rq-field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.rq-field span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.rq-field input,
+.rq-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: #08090a;
+  color: var(--ink);
+  font: 16px "Special Elite", monospace;
+}
+
+.rq-field input:focus-visible,
+.rq-field textarea:focus-visible {
+  outline: 2px solid var(--amber);
+}
+
+.rq-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 8px;
+}
+
+.rq-song {
+  padding: 6px 10px;
+  border: 1px solid var(--amber-dim);
+  border-radius: 6px;
+  background: none;
+  color: var(--amber);
+  font: 14px "Special Elite", monospace;
+  cursor: pointer;
+}
+
+.rq-status {
+  min-height: 20px;
+  margin: 12px 0 0;
+  color: var(--amber);
+  font-family: "Special Elite", monospace;
+}
+
 @media (max-width: 560px) {
   .now .t {
     font-size: 18px;

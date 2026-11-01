@@ -33,6 +33,7 @@ export const REASONS = {
   links: "No numbers, no links, no handles. Just names and what you want to say.",
   blocked: "The line crackled and I lost that one. Try saying it another way.",
   song: "I can't find that one in the stack. Pick a song from the list.",
+  played: "That one already played tonight. Pick another one and I'll get it on.",
   slow: "One call at a time. Try me again in a few minutes.",
   busy: "Every line's lit up right now. Call back in a little while.",
 } as const;

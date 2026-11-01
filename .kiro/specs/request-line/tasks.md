@@ -34,18 +34,18 @@ Status key: all tasks are [ ] (not started).
 
 ## Studio worker tasks
 
-- [ ] **W-1: `tools/studio/worker.py` scaffold**
+- [x] **W-1: `tools/studio/worker.py` scaffold**
   Poll KV every 30 s for `status == "queued"` records (oldest first). Structure the main loop, add graceful shutdown, and wire up the KV client and R2 client.
 
-- [ ] **W-2: Script builder**
+- [x] **W-2: Script builder**
   Given a `RequestRecord`, produce the render script: "Got a call on the request line. This one's from {from}, for {to}. {message} Here's {song-title}." Pass through the station pronunciation lexicon before handing to `studio.py`.
   _Covers: REQ-16_
 
-- [ ] **W-3: Render and Whisper verification**
+- [x] **W-3: Render and Whisper verification**
   Call `studio.py`, check duration (<= 30 s), run Whisper word-match (>= 0.85), retry once on failure, set `dropped` if still below threshold or over duration limit.
   _Covers: P5 (clip always fits break), REQ-17, REQ-18_
 
-- [ ] **W-4: `assign_air_at` function**
+- [x] **W-4: `assign_air_at` function**
   Find the first break boundary >= 5 min after render time that has no existing `airAt` KV key within 600 000 ms. Write the `airAt` key atomically. Update record to `rendered`.
   _Covers: P3 (10-minute spacing), REQ-20, REQ-25_
 
@@ -57,15 +57,15 @@ Status key: all tasks are [ ] (not started).
 
 ## Web form tasks
 
-- [ ] **F-1: `web/src/request-form.ts`**
+- [x] **F-1: `web/src/request-form.ts`**
   Build the form component: four fields (from-name, to-name, message, song search). Song search queries the library client-side and shows a pick list. On submit, POST /request and handle 202/400/429.
   _Covers: REQ-01, REQ-02, REQ-03_
 
-- [ ] **F-2: Ticket display**
+- [x] **F-2: Ticket display**
   On 202, show the ticket URL and a friendly note ("Dead John will read your request around {airAt} -- keep it on."). On 4xx, show the server's reason phrase verbatim; do not echo submitted text.
   _Covers: REQ-04, REQ-05_
 
-- [ ] **F-3: Wire form into `web/index.html`**
+- [x] **F-3: Wire form into `web/index.html`**
   Add the "CALL THE REQUEST LINE" section after the tuner. Gate it behind the locked-signal state so it only appears after the listener has tuned in.
 
 ---
@@ -92,15 +92,15 @@ Status key: all tasks are [ ] (not started).
   Assert that the `POST /request` response body on a blocklist hit contains no substring from the submitted text and no substring from `blocklist.txt`.
   _Covers: P6_
 
-- [ ] **T-6: Clip duration cap test** (`tools/studio/tests/worker.test.py`)
+- [x] **T-6: Clip duration cap test** (`tools/studio/tests/worker.test.py`)
   Mock a render that returns a 31-second clip; assert the record is set to `dropped` and `airAt` is never written to KV.
   _Covers: P5_
 
-- [ ] **T-7: Whisper re-render and drop test** (`tools/studio/tests/worker.test.py`)
+- [x] **T-7: Whisper re-render and drop test** (`tools/studio/tests/worker.test.py`)
   Mock Whisper returning 0.80 on first render and 0.80 on retry; assert status becomes `dropped`.
   _Covers: REQ-17_
 
-- [ ] **T-8: `assign_air_at` spacing test** (`tools/studio/tests/worker.test.py`)
+- [x] **T-8: `assign_air_at` spacing test** (`tools/studio/tests/worker.test.py`)
   Given two requests rendered within 2 minutes of each other, assert their assigned `airAt` values differ by >= 600 000 ms.
   _Covers: P3, REQ-25_
 
@@ -110,3 +110,4 @@ Status key: all tasks are [ ] (not started).
 
 Note (Claude, Nov 1): S-2 threads inserts through Voicebank.inserts so nowPlaying/schedule need no signature change. T-1..T-3 live in station/tests/request.property.test.ts.
 Note (Claude, Nov 1): S-5 is a JsonFileStore behind the RequestStore interface (laptop); a KV adapter comes with Cloudflare hosting. Callers are told apart by a salted hash, raw IPs are never stored.
+Note (Claude, Nov 1): W-5 (R2 upload) waits for Cloudflare hosting; on the laptop the read is served from ~/.deadair/requests. Added: a song that already aired today is turned down at POST (it could not air again), and the hourly ID waits until after a requested song.

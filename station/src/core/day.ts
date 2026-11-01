@@ -220,7 +220,8 @@ export function generateDay(
     }
 
     // 2. Discharge pendingId with an "id" clip
-    if (pendingId) {
+    // (A requested song goes straight after its read; the ID waits until after the song.)
+    if (pendingId && !requestedSong) {
       const clip = rotation.pickOrOldest(idClips, cursor, CLIP_COOLDOWN_MS.id);
       if (clip) {
         const clipEnd = cursor + Math.round(clip.seconds * 1000);

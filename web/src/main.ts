@@ -15,6 +15,7 @@ import { updateMediaSession } from './media-session.js';
 import { createHuntTuner, type HuntTuner } from './hunt.js';
 import { record, heardAd, heardNumbers, finaleDue, markFinale, foundCount, TOWN_ADS } from './logbook.js';
 import { mountLogbook } from './logbook-ui.js';
+import { mountRequestLine } from './request-form.js';
 import type { Segment, SongSegment, VoiceSegment, AudioGraph } from './types.js';
 
 const MIN = FREQ_MIN;
@@ -166,6 +167,10 @@ function segmentLabel(seg: Segment | null): {
       }
     }
     return { title: song.title, meta, quote: '' };
+  }
+
+  if (seg.kind === 'voice' && (seg as VoiceSegment).clipKind === 'request') {
+    return { title: 'Dead John', meta: 'On the request line', quote: (seg as VoiceSegment).text };
   }
 
   if (seg.kind === 'voice') {
@@ -353,6 +358,7 @@ function buildScale(): void {
 function main(): void {
   buildScale();
   mountLogbook();
+  mountRequestLine();
 
   const glass = $('glass');
   const powerBtn = $('power');

@@ -17,6 +17,8 @@ import {
   type RequestRecord,
 } from "./core/request.js";
 import { JsonFileStore } from "./request-store.js";
+import { schedule } from "./core/schedule.js";
+import { stationDayStart } from "./core/tzoffsets.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const projectRoot = resolve(__dirname, "..", ".."); // src -> station -> repo root (data/ lives there)
@@ -125,6 +127,10 @@ app.post("/request", express.json({ limit: "2kb" }), async (req, res) => {
   if (limit !== "ok") return res.status(429).json({ reason: limit === "slow" ? REASONS.slow : REASONS.busy });
   const v = validateRequest(req.body ?? {}, blocklist, songIds);
   if (!v.ok) return res.status(400).json({ reason: v.reason });
+  // A song that already aired today can't air again today (no repeats in 24 h), so don't promise it.
+  const airedToday = schedule(library, voicebank, featured, epochMs, stationDayStart(now), now)
+    .some((s) => s.kind === "song" && s.trackId === v.value.songId);
+  if (airedToday) return res.status(400).json({ reason: REASONS.played });
   limiter.accept(caller, now);
   const rec: RequestRecord = {
     ticket: randomUUID(),
