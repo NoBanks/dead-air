@@ -38,11 +38,11 @@ async function fetchAndDecode(ctx: AudioContext, url: string): Promise<AudioBuff
 }
 
 /** Segment paths from the station are already absolute ("/audio/x.mp3", "/voice/y.mp3"). */
-function segmentUrl(seg: Segment): string | null {
+function segmentUrl(seg: Segment, state: PlayerState): string | null {
   if (seg.kind === 'song') return seg.mp3;
   if (seg.kind === 'voice') return seg.file;
   if (seg.kind === 'numbers') return seg.short ? '/voice/numbers_short.mp3' : '/voice/numbers_full.mp3';
-  if (seg.kind === 'ebs') return '/voice/ebs.mp3';
+  if (seg.kind === 'ebs') return state.ebsUrl?.(seg) ?? '/voice/ebs.mp3';
   return null;
 }
 
@@ -62,6 +62,8 @@ export interface PlayerState {
   generation?: number;
   /** Called whenever the on-air segment changes. */
   onSegment?: (seg: Segment | null) => void;
+  /** Lets the Hunt swap one Emergency Broadcast for the finale on this device. */
+  ebsUrl?: (seg: Segment) => string | null;
 }
 
 async function fetchSegments(at: number): Promise<Segment[]> {
@@ -90,7 +92,7 @@ async function scheduleSegment(
   seg: Segment,
   gen: number
 ): Promise<void> {
-  const url = segmentUrl(seg);
+  const url = segmentUrl(seg, state);
   if (!url) return;
   const buffer = await fetchAndDecode(ctx, url);
   if (gen !== state.generation) return;

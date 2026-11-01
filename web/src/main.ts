@@ -14,6 +14,9 @@ import {
 } from './player.js';
 import { estimateOffset } from './clock.js';
 import { updateMediaSession } from './media-session.js';
+import { createHuntTuner, type HuntTuner } from './hunt.js';
+import { record, heardAd, heardNumbers, finaleDue, markFinale, foundCount, TOWN_ADS } from './logbook.js';
+import { mountLogbook } from './logbook-ui.js';
 import type { Segment, SongSegment, VoiceSegment, AudioGraph } from './types.js';
 
 const MIN = FREQ_MIN;
@@ -31,6 +34,9 @@ let wasLocked = false;
 let audioCtx: AudioContext | null = null;
 let graph: AudioGraph | null = null;
 let staticStop: (() => void) | null = null;
+let hunt: HuntTuner | null = null;
+// The Emergency Broadcast this device turned into the finale (start time), if any.
+let finaleAt: number | null = null;
 
 const playerState: PlayerState = {
   offset: 0,
@@ -38,10 +44,18 @@ const playerState: PlayerState = {
   scheduledNodes: [],
   preloadInterval: null,
   resyncStop: null,
-  // Keep the card and lock screen in step with what is on air.
+  // Keep the card and lock screen in step with what is on air, and feed the Logbook.
   onSegment: (seg) => {
+    if (seg?.kind === 'voice' && (seg as VoiceSegment).clipId in TOWN_ADS) heardAd((seg as VoiceSegment).clipId);
+    if (seg?.kind === 'numbers') heardNumbers();
+    if (seg?.kind === 'ebs' && seg.startMs === finaleAt) markFinale();
     applyNowPlaying(seg);
     updateMediaSession(seg?.kind === 'song' ? ({ title: (seg as SongSegment).title } as any) : undefined);
+  },
+  // All pages found: the next Emergency Broadcast is Marty, close and clear for the first time.
+  ebsUrl: (seg) => {
+    if (finaleAt === null && finaleDue()) finaleAt = seg.startMs;
+    return seg.startMs === finaleAt ? '/voice/finale.mp3' : null;
   },
 };
 
@@ -78,6 +92,15 @@ const playerState: PlayerState = {
     // Static level lives on the generator's own gain node, not the bus
     const g = graph ? ((graph as any)._staticGain1 as GainNode | undefined) : undefined;
     return g ? g.gain.value : 0;
+  },
+  get huntPage(): string | null {
+    return hunt?.current()?.page ?? null;
+  },
+  get huntStrength(): number {
+    return hunt ? hunt.strength() : 0;
+  },
+  get logbook(): number {
+    return foundCount();
   },
   get playing(): boolean {
     // A source is "playing" when at least one node is scheduled and the
@@ -156,6 +179,10 @@ function segmentLabel(seg: Segment | null): {
     return { title: '\u2666\u2666\u2666\u2666\u2666', meta: 'Numbers Station', quote: '' };
   }
 
+  if (seg.kind === 'ebs' && seg.startMs === finaleAt) {
+    return { title: 'Marty', meta: '1714 AM', quote: "Signal's good, John." };
+  }
+
   if (seg.kind === 'ebs') {
     return {
       title: 'Emergency Broadcast',
@@ -225,15 +252,21 @@ function render(): void {
   const lock = Math.max(0, 1 - distance / WIDTH);
   ($('radio') as any).style.setProperty('--lock', lock.toFixed(3));
 
-  $('sig').style.width = (lock * 100) + '%';
-  $('stat').style.width = ((1 - lock) * 100) + '%';
-
   const isLive = on && lock > 0.85;
   $('onair').classList.toggle('live', isLive);
 
+  // Off 1714 the Hunt asks the station what (if anything) is at this exact spot.
+  hunt?.tune(freq, on && !isLive);
+  // Hidden stations are faint: they never pull more than about 60% through the static.
+  const faint = on && !isLive ? (hunt?.strength() ?? 0) * 0.6 : 0;
+  const signal = Math.max(lock, faint);
+
+  $('sig').style.width = (signal * 100) + '%';
+  $('stat').style.width = ((1 - signal) * 100) + '%';
+
   // Apply static gain via real nodes when available, otherwise visual only
   if (graph && audioCtx) {
-    applyStaticGain(on ? lock : 0);
+    applyStaticGain(on ? signal : 0);
   }
 
   // Lock / unlock transitions
@@ -247,7 +280,11 @@ function render(): void {
 
   // If not locked, drive the text directly from context
   if (!isLive) {
-    if (on && lock > 0.2) {
+    if (on && faint > 0) {
+      $('title').textContent = 'something faint...';
+      $('meta').textContent = 'hold still. listen.';
+      $('quote').textContent = '';
+    } else if (on && lock > 0.2) {
       $('title').textContent = "something's there...";
       $('meta').textContent = 'keep turning, slowly';
       $('quote').textContent = '';
@@ -272,6 +309,12 @@ function startAudio(): void {
   graph = buildGraph(audioCtx);
   const gen = createStaticGenerator(audioCtx, graph);
   staticStop = gen.stop;
+  hunt = createHuntTuner(
+    audioCtx,
+    graph,
+    (hit, f) => { record(hit.page, f); },
+    () => render() // a signal came in or faded: update meters, static and text
+  );
 }
 
 // -------------------------------------------------------------------
@@ -313,6 +356,7 @@ function buildScale(): void {
 // -------------------------------------------------------------------
 function main(): void {
   buildScale();
+  mountLogbook();
 
   const glass = $('glass');
   const powerBtn = $('power');

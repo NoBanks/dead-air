@@ -61,6 +61,9 @@ function makeRotation(prng: () => number) {
       const pool = others.length > 0 ? others : clips;
       return [...pool].sort((a, b) => (lastAired.get(a.id) ?? 0) - (lastAired.get(b.id) ?? 0))[0];
     },
+    lastId(): string | null {
+      return lastClipId;
+    },
     aired(clipId: string, at: number): void {
       lastAired.set(clipId, at);
       lastClipId = clipId;
@@ -163,6 +166,7 @@ export function generateDay(
   const t314 = hour3Start + 14 * 60_000;
   let placed314 = !clip314;
   let shortNumbersHour = -1;
+  let breakCount = 0;
   // Midnight: Dead John hands the mic to the numbers station and comes back after it.
   const handoff = voiceMap.get("midnight_handoff");
   const comeback = voiceMap.get("midnight_return");
@@ -306,7 +310,11 @@ export function generateDay(
 
     // 6. Break
     if (songsSinceBreak >= breakCountdown) {
-      const clip = rotation.pickOrOldest(breakPool(cursor), cursor, CLIP_COOLDOWN_MS.break);
+      // Every third break is a sponsor read, like real radio (and the Hunt's Town page needs them heard).
+      breakCount++;
+      const sponsors = breakPool(cursor).filter((c) => c.kind === "sponsor" && c.id !== rotation.lastId());
+      const pool = breakCount % 3 === 0 && sponsors.length > 0 ? sponsors : breakPool(cursor);
+      const clip = rotation.pickOrOldest(pool, cursor, CLIP_COOLDOWN_MS.break);
       if (clip) {
         const clipEnd = cursor + Math.round(clip.seconds * 1000);
         if (clipEnd <= airEnd) {

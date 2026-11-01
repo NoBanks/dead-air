@@ -235,6 +235,48 @@
    "text": "The night the tower went down, I was right in the middle of a sentence. Some nights I think I'm still finishing it.",
    "seconds": 8.38,
    "file": "/voice/storm_hint.mp3"
+  },
+  {
+   "id": "ad_motorlodge",
+   "kind": "sponsor",
+   "text": "Hollow Pines Motor Lodge. On Route nine, just past the dam. Clean rooms, color TV, vacancy every night. Tell them John sent you.",
+   "seconds": 9.66,
+   "file": "/voice/ad_motorlodge.mp3"
+  },
+  {
+   "id": "ad_diner",
+   "kind": "sponsor",
+   "text": "Gable's Twenty Four Hour Diner, corner of Fairview and Main. Pie, eggs, and a booth by the window. The lights are always on.",
+   "seconds": 8.14,
+   "file": "/voice/ad_diner.mp3"
+  },
+  {
+   "id": "ad_rink",
+   "kind": "sponsor",
+   "text": "Starlite Roller Rink, out on Old Mill Road. Halloween skate, October thirty first. Costumes get in free. Couples skate at midnight.",
+   "seconds": 9.26,
+   "file": "/voice/ad_rink.mp3"
+  },
+  {
+   "id": "ad_repair",
+   "kind": "sponsor",
+   "text": "Lindqvist Radio and TV Repair, Main Street, next to the bank. We fix anything that still makes a sound. Even an old fourteen ten.",
+   "seconds": 9.42,
+   "file": "/voice/ad_repair.mp3"
+  },
+  {
+   "id": "ad_laundromat",
+   "kind": "sponsor",
+   "text": "Pale Harbor Laundromat. Open all night, right below the dam. Bring a book. The dryers take a while.",
+   "seconds": 7.18,
+   "file": "/voice/ad_laundromat.mp3"
+  },
+  {
+   "id": "ad_drivein",
+   "kind": "sponsor",
+   "text": "The Orpheum Drive In, River Road. This Halloween, a double feature under the stars. Gates open at dusk. Bring the whole family.",
+   "seconds": 8.78,
+   "file": "/voice/ad_drivein.mp3"
   }
  ]
 }
