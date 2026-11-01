@@ -234,11 +234,14 @@ def finale(tab):
         return real(u, o);
       };
     })();""" % (ebs - 9000, json.dumps(found))
+    t0 = time.time()
     open_site(tab, inject)
     power_on(tab)
     tab.sweep(1714, fast=0.001, slow=0.001)
+    # The page shifted its clock to 9 s before the EBS at load (about 0.4 s after navigate).
+    tab.marks["ebs_ms"] = int((t0 + 0.4) * 1000) + 9000
     record_start(tab)
-    time.sleep(28)
+    time.sleep(36)
     tab.click(".lb-open")
     time.sleep(6)
     record_stop(tab, "finale")
