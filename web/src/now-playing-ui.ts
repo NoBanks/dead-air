@@ -1,4 +1,4 @@
-import type { Segment, SongSegment, VoiceSegment, Track } from './types.js';
+import type { Segment, Track } from './types.js';
 
 /**
  * Format a date string (ISO format) to month and year

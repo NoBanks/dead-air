@@ -14,20 +14,25 @@ function dbToLinear(db: number): number {
  */
 export function scheduleDuck(
   musicBus: GainNode,
-  ctx: AudioContext,
+  _ctx: AudioContext,
   startAudioTime: number,
   postAudioTime: number
 ): void {
   const duckedGain = dbToLinear(DUCK_DB);
+  const gain = musicBus.gain;
 
   // Attack: fall to ducked level using exponential ramp
-  musicBus.gain.setTargetAtTime(
+  gain.setTargetAtTime(
     duckedGain,
     startAudioTime,
     DUCK_ATTACK_S / 3 // time constant
   );
 
+  // Hold the duck until the release begins. Without this anchor the linear ramp would start
+  // at the attack and the music would creep back up under the whole talk-up.
+  const releaseStartTime = Math.max(startAudioTime + DUCK_ATTACK_S, postAudioTime - DUCK_RELEASE_S);
+  gain.setValueAtTime(duckedGain, releaseStartTime);
+
   // Release: linear ramp back to full level, ending exactly at postAudioTime
-  const releaseStartTime = postAudioTime - DUCK_RELEASE_S;
-  musicBus.gain.linearRampToValueAtTime(1.0, postAudioTime);
+  gain.linearRampToValueAtTime(1.0, postAudioTime);
 }

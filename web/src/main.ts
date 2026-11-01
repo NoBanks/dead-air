@@ -3,7 +3,6 @@ import {
   FREQ_MAX,
   STATION_FREQ,
   LOCK_THRESHOLD,
-  LOCK_FADE_S,
 } from './constants.js';
 import { buildGraph } from './audio-graph.js';
 import { createStaticGenerator, updateStaticGain } from './static-gen.js';
@@ -12,7 +11,6 @@ import {
   stopPlayback,
   type PlayerState,
 } from './player.js';
-import { estimateOffset } from './clock.js';
 import { updateMediaSession } from './media-session.js';
 import { createHuntTuner, type HuntTuner } from './hunt.js';
 import { record, heardAd, heardNumbers, finaleDue, markFinale, foundCount, TOWN_ADS } from './logbook.js';
@@ -33,7 +31,6 @@ let wasLocked = false;
 
 let audioCtx: AudioContext | null = null;
 let graph: AudioGraph | null = null;
-let staticStop: (() => void) | null = null;
 let hunt: HuntTuner | null = null;
 // The Emergency Broadcast this device turned into the finale (start time), if any.
 let finaleAt: number | null = null;
@@ -307,8 +304,7 @@ function startAudio(): void {
 
   audioCtx = new AC() as AudioContext;
   graph = buildGraph(audioCtx);
-  const gen = createStaticGenerator(audioCtx, graph);
-  staticStop = gen.stop;
+  createStaticGenerator(audioCtx, graph); // runs for the life of the page
   hunt = createHuntTuner(
     audioCtx,
     graph,

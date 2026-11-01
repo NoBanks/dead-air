@@ -1,4 +1,4 @@
-import { FREQ_MIN, FREQ_MAX, DRAG_FACTOR, LOCK_THRESHOLD } from './constants.js';
+import { FREQ_MIN, FREQ_MAX, DRAG_FACTOR } from './constants.js';
 import type { DialState } from './types.js';
 
 /**
