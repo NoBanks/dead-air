@@ -4,6 +4,7 @@ import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { handleRequest } from "./core/handler.js";
 import type { Track, Voicebank, FeaturedEntry } from "./core/types.js";
+import type { HuntConfig } from "./core/hunt.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const projectRoot = resolve(__dirname, "..", ".."); // src -> station -> repo root (data/ lives there)
@@ -14,6 +15,7 @@ const app = express();
 let library: Track[] = [];
 let voicebank: Voicebank = { clips: [] };
 let featured: FeaturedEntry[] = [];
+let hunt: HuntConfig | undefined;
 const epochMs = new Date("2026-10-31T00:00:00Z").getTime();
 
 try {
@@ -27,9 +29,7 @@ try {
 try {
   const voicebankPath = resolve(projectRoot, "data", "voicebank.json");
   voicebank = JSON.parse(readFileSync(voicebankPath, "utf-8"));
-  console.log(
-    `Loaded ${voicebank.clips.length} clips from voicebank.json`
-  );
+  console.log(`Loaded ${voicebank.clips.length} clips from voicebank.json`);
 } catch (e) {
   console.warn("Could not load voicebank.json");
 }
@@ -42,17 +42,23 @@ try {
   console.warn("Could not load featured.json");
 }
 
+try {
+  const huntPath = resolve(projectRoot, "data", "hunt.json");
+  hunt = JSON.parse(readFileSync(huntPath, "utf-8"));
+  console.log(`Loaded ${hunt!.stations.length} hidden stations from hunt.json`);
+} catch (e) {
+  console.warn("Could not load hunt.json");
+}
+
 // Get audio directories from environment variables
 const libraryOut = process.env.LIBRARY_OUT || "C:\\Users\\machi\\.deadair\\library_mp3";
 const voiceOut = process.env.VOICE_OUT || "C:\\Users\\machi\\.deadair\\voice_mp3";
 
-// GET /now endpoint
-app.get("/now", async (req, res) => {
+// Route /now and /signal through the shared handler.
+async function routeHandler(req: express.Request, res: express.Response) {
   const mockRequest = new Request(
-    `http://localhost:8787/now${req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : ""}`,
-    {
-      method: "GET",
-    }
+    `http://localhost:8787${req.url}`,
+    { method: "GET" }
   );
 
   const response = await handleRequest(mockRequest, {
@@ -60,19 +66,24 @@ app.get("/now", async (req, res) => {
     voicebank,
     featured,
     epoch: epochMs,
+    hunt,
   });
 
   res.status(response.status);
   for (const [key, value] of response.headers) {
     res.setHeader(key, value);
   }
-  res.send(await response.text());
-});
+  const body = await response.text();
+  res.send(body.length ? body : undefined);
+}
+
+app.get("/now", routeHandler);
+app.get("/signal", routeHandler);
 
 // GET /audio/<file> endpoint with Range support
 app.get("/audio/:file", (req, res) => {
   const filePath = resolve(libraryOut, req.params.file);
-  
+
   // Security: ensure path is within libraryOut
   if (!filePath.startsWith(libraryOut)) {
     return res.status(403).send("Forbidden");
@@ -82,7 +93,6 @@ app.get("/audio/:file", (req, res) => {
     const stat = statSync(filePath);
     const fileSize = stat.size;
 
-    // Handle Range header
     const range = req.headers.range;
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
@@ -112,7 +122,7 @@ app.get("/audio/:file", (req, res) => {
 // GET /voice/<file> endpoint with Range support
 app.get("/voice/:file", (req, res) => {
   const filePath = resolve(voiceOut, req.params.file);
-  
+
   // Security: ensure path is within voiceOut
   if (!filePath.startsWith(voiceOut)) {
     return res.status(403).send("Forbidden");
@@ -122,7 +132,6 @@ app.get("/voice/:file", (req, res) => {
     const stat = statSync(filePath);
     const fileSize = stat.size;
 
-    // Handle Range header
     const range = req.headers.range;
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
@@ -145,18 +154,6 @@ app.get("/voice/:file", (req, res) => {
       stream.pipe(res);
     }
   } catch (e) {
-    res.status(404).send("Not Found");
-  }
-});
-
-// GET /signal endpoint - return 404 for all frequencies except 1714
-app.get("/signal", (req, res) => {
-  const freqParam = req.query.f as string;
-  const freq = parseInt(freqParam, 10);
-
-  if (freq === 1714) {
-    res.json({ locked: true });
-  } else {
     res.status(404).send("Not Found");
   }
 });

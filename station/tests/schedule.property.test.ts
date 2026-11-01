@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import * as fc from "fast-check";
-import { generateDay, CLIP_COOLDOWN_MS } from "../src/core/day.js";
+import { generateDay, CLIP_COOLDOWN_MS, SHORT_NUMBERS_MS } from "../src/core/day.js";
 import type { Track, Voicebank, SongSegment, VoiceSegment } from "../src/core/types.js";
 import {
   stationDayStart,
@@ -347,6 +347,18 @@ describe("P-11: Time-pinned lines", () => {
       for (const v of voices.filter((v) => v.clipId === "weather_night")) {
         const h = la(v.startMs).h;
         expect(h >= 19 || h < 6, `night line at hour ${h}`).toBe(true);
+      }
+
+      // Short numbers: once per LA hour, between :14 and :34, never in the 3 AM hour.
+      const shorts = day.segments.filter((s) => s.kind === "numbers" && (s as { short?: boolean }).short);
+      const hours = shorts.map((s) => la(s.startMs).h);
+      expect(new Set(hours).size).toBe(hours.length);
+      expect(hours).not.toContain(3);
+      expect(shorts.length).toBeGreaterThanOrEqual(20);
+      for (const s of shorts) {
+        const t = la(s.startMs);
+        expect(t.m >= 14 && t.m < 34, `short numbers at ${t.h}:${t.m}`).toBe(true);
+        expect(s.endMs - s.startMs).toBe(SHORT_NUMBERS_MS);
       }
 
       expect(day.segments[1]).toMatchObject({ kind: "voice", clipId: "midnight_return", startMs: day.startMs + 60_000 });

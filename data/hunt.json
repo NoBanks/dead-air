@@ -1,0 +1,121 @@
+{
+  "lock_khz": 6,
+  "stations": [
+    {
+      "freq": 1410,
+      "page": "old-station",
+      "mode": "loop",
+      "clips": [
+        {
+          "id": "storm_frag_1",
+          "file": "/voice/storm_frag_1.mp3",
+          "seconds": 13.141
+        },
+        {
+          "id": "storm_frag_2",
+          "file": "/voice/storm_frag_2.mp3",
+          "seconds": 13.22
+        },
+        {
+          "id": "storm_frag_3",
+          "file": "/voice/storm_frag_3.mp3",
+          "seconds": 13.22
+        },
+        {
+          "id": "storm_frag_4",
+          "file": "/voice/storm_frag_4.mp3",
+          "seconds": 12.34
+        },
+        {
+          "id": "storm_frag_5",
+          "file": "/voice/storm_frag_5.mp3",
+          "seconds": 10.66
+        },
+        {
+          "id": "storm_frag_6",
+          "file": "/voice/storm_frag_6.mp3",
+          "seconds": 13.141
+        },
+        {
+          "id": "storm_frag_7",
+          "file": "/voice/storm_frag_7.mp3",
+          "seconds": 12.58
+        },
+        {
+          "id": "storm_frag_8",
+          "file": "/voice/storm_frag_8.mp3",
+          "seconds": 13.46
+        }
+      ]
+    },
+    {
+      "freq": 870,
+      "page": "marty",
+      "mode": "loop",
+      "clips": [
+        {
+          "id": "marty_radio_1",
+          "file": "/voice/marty_radio_1.mp3",
+          "seconds": 20
+        }
+      ]
+    },
+    {
+      "freq": 1031,
+      "page": "bulletin",
+      "mode": "loop",
+      "clips": [
+        {
+          "id": "bulletin_1",
+          "file": "/voice/bulletin_1.mp3",
+          "seconds": 50.436
+        }
+      ]
+    },
+    {
+      "freq": 540,
+      "page": "hold",
+      "mode": "loop",
+      "clips": [
+        {
+          "id": "hold_1",
+          "file": "/voice/hold_1.mp3",
+          "seconds": 20
+        }
+      ]
+    },
+    {
+      "freq": 710,
+      "page": "rink",
+      "mode": "loop",
+      "clips": [
+        {
+          "id": "rink_1",
+          "file": "/voice/rink_1.mp3",
+          "seconds": 20
+        }
+      ]
+    },
+    {
+      "freq": 666,
+      "page": "between",
+      "mode": "loop",
+      "clips": [
+        {
+          "id": "s666_reversed",
+          "file": "/voice/s666_reversed.mp3",
+          "seconds": 8.58
+        }
+      ]
+    }
+  ],
+  "last_minute": {
+    "freq": 1410,
+    "page": "three-fourteen",
+    "clip": {
+      "id": "last_minute",
+      "file": "/voice/last_minute.mp3",
+      "seconds": 60.0
+    }
+  }
+}

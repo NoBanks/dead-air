@@ -92,6 +92,8 @@ export interface VoiceSegment extends BaseSegment {
 // Numbers station segment
 export interface NumbersSegment extends BaseSegment {
   kind: "numbers";
+  // The short reading at :14 past the hour (the full one runs at midnight).
+  short?: true;
 }
 
 // Emergency Broadcast System segment

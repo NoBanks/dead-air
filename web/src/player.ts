@@ -41,7 +41,9 @@ async function fetchAndDecode(ctx: AudioContext, url: string): Promise<AudioBuff
 function segmentUrl(seg: Segment): string | null {
   if (seg.kind === 'song') return seg.mp3;
   if (seg.kind === 'voice') return seg.file;
-  return null; // numbers and ebs have no audio yet
+  if (seg.kind === 'numbers') return seg.short ? '/voice/numbers_short.mp3' : '/voice/numbers_full.mp3';
+  if (seg.kind === 'ebs') return '/voice/ebs.mp3';
+  return null;
 }
 
 export interface PlayerState {

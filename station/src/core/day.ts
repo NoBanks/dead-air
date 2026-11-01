@@ -20,6 +20,9 @@ import {
 // Kinds that count as a "break" body clip.
 const BREAK_KINDS = new Set(["drop", "break", "storm", "marty", "sponsor", "caller"]);
 
+// Length of the :14-past short numbers reading (numbers_short.mp3).
+export const SHORT_NUMBERS_MS = 10_000;
+
 // A clip may not air again until this long after it last aired.
 // Talk-ups are the most noticeable repeat, so they rest the longest per clip
 // and never land on back-to-back songs.
@@ -159,6 +162,7 @@ export function generateDay(
   while (stationHourOf(hour3Start) !== 3 && hour3Start < dayStart + 6 * 3_600_000) hour3Start += 3_600_000;
   const t314 = hour3Start + 14 * 60_000;
   let placed314 = !clip314;
+  let shortNumbersHour = -1;
   // Midnight: Dead John hands the mic to the numbers station and comes back after it.
   const handoff = voiceMap.get("midnight_handoff");
   const comeback = voiceMap.get("midnight_return");
@@ -239,6 +243,19 @@ export function generateDay(
         rotation.aired(clip314!.id, cursor);
         cursor = clipEnd;
         djJustSpoke = true;
+        if (cursor >= airEnd) break;
+      }
+    }
+
+    // 2c. Short numbers reading at :14 past each hour (not 3 AM, which belongs to John's 3:14 line).
+    // LA offsets are whole hours, so the UTC minute is the LA minute.
+    const minute = new Date(cursor).getUTCMinutes();
+    if (currentHour !== shortNumbersHour && currentHour !== 3 && minute >= 14 && minute < 34) {
+      shortNumbersHour = currentHour;
+      const end = cursor + SHORT_NUMBERS_MS;
+      if (end <= airEnd) {
+        segments.push({ kind: "numbers", short: true, startMs: cursor, endMs: end } as NumbersSegment);
+        cursor = end;
         if (cursor >= airEnd) break;
       }
     }
