@@ -143,8 +143,8 @@ function segmentLabel(seg: Segment | null): {
     return {
       title: 'Nothing but static',
       meta: on
-        ? 'Slide back to 1714 for the station. Or keep looking.'
-        : 'Turn on the radio. It finds 1714 for you.',
+        ? 'Slide the dial to 1714, far right.'
+        : 'Turn on the radio. Then slide the dial to 1714.',
       quote: '',
     };
   }
@@ -391,9 +391,6 @@ function main(): void {
 
     glass.focus({ preventScroll: true });
     render();
-    // Nobody should have to hunt for the station itself: turning the radio on glides the needle
-    // through the static and onto 1714. Touching the dial takes over at any moment.
-    if (on && Math.abs(freq - STATION) > 1) autoTune();
   });
 
   let autoTuning = 0;
