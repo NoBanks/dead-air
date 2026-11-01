@@ -149,22 +149,13 @@ function segmentLabel(seg: Segment | null): {
 
   if (seg.kind === 'song') {
     const song = seg as SongSegment;
-    // made_at comes from the schedule; if the segment carries it via NowPlayingResult
-    // lookup we use it. The segment itself only has title and mp3; made_at lives on
-    // the Track in the library. We carry it through the extended result below.
-    const madeAt = (song as any).__madeAt as string | undefined;
+    // Every title is a time capsule of the night it was made, in station time.
     let meta = 'NoBanks Nearby';
-    if (madeAt) {
-      try {
-        const d = new Date(madeAt);
-        const formatted = d.toLocaleDateString('en-US', {
-          month: 'long',
-          year: 'numeric',
-        });
-        meta = `NoBanks Nearby  \u00B7  ${formatted}`;
-      } catch {
-        // keep plain
-      }
+    const made = song.madeAt ? new Date(song.madeAt) : null;
+    if (made && !Number.isNaN(made.getTime())) {
+      const day = made.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', year: 'numeric' });
+      const time = made.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit' });
+      meta = `NoBanks Nearby  \u00B7  made ${day}, ${time}`;
     }
     return { title: song.title, meta, quote: '' };
   }

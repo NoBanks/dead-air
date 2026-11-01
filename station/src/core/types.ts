@@ -72,6 +72,8 @@ export interface SongSegment extends BaseSegment {
   trackId: string;
   title: string;
   mp3: string;
+  /** When the song was made (ISO, from the library). Each title is a time capsule of that night. */
+  madeAt?: string;
   /** True only on the last segment of a day: the song was clipped at dayEnd. */
   truncated?: true;
   /**

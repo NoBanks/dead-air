@@ -310,6 +310,7 @@ export function generateDay(
       trackId: song.id,
       title: song.title,
       mp3: song.mp3,
+      ...(song.made_at && { madeAt: song.made_at }),
       startMs: songStart,
       endMs: songEnd,
       ...(truncated && { truncated: true as const }),
