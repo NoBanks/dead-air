@@ -270,8 +270,10 @@ if (staticDir) {
 }
 
 const port = Number(process.env.PORT) || 8787;
-const server = app.listen(port, () => {
-  console.log(`Dev server listening on http://localhost:${port}`);
+// HOST=127.0.0.1 in production: only the Cloudflare tunnel on this machine can reach it.
+const host = process.env.HOST || "::";
+const server = app.listen(port, host, () => {
+  console.log(`Dev server listening on http://${host}:${port}`);
   console.log(`Audio directory: ${libraryOut}`);
   console.log(`Voice directory: ${voiceOut}`);
 });
