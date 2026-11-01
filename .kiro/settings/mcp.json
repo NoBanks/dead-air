@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "dead-air-station": {
+      "command": "npx",
+      "args": ["-y", "tsx", "station/src/mcp-server.ts"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": ["whats_on", "find_track", "talkup_window", "day_summary", "library_stats", "signal_check"]
+    }
+  }
+}

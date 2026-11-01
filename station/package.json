@@ -17,6 +17,8 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
-    "express": "^4.19.0"
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "express": "^4.19.0",
+    "zod": "^4.6.7"
   }
 }
