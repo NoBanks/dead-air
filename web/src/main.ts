@@ -245,7 +245,9 @@ function render(): void {
   const lock = Math.max(0, 1 - distance / WIDTH);
   ($('radio') as any).style.setProperty('--lock', lock.toFixed(3));
 
-  const isLive = on && lock > 0.85;
+  // Lock within 1.5 kHz, but once locked hold it out to 6 kHz: on a phone one pixel of the dial
+  // is about 3 kHz, so without this a resting finger flips the station on and off.
+  const isLive = on && (wasLocked ? distance < 6 : lock > 0.85);
   $('onair').classList.toggle('live', isLive);
 
   // Off 1714 the Hunt asks the station what (if anything) is at this exact spot.
@@ -398,7 +400,25 @@ function main(): void {
     render();
   });
 
-  const stop = (): void => { dragging = false; };
+  // Let go near 1714 and the dial settles onto it, like a digital tuner's magnet.
+  const settle = (): void => {
+    if (!on || freq === STATION) return;
+    if (Math.abs(freq - STATION) > WIDTH) return;
+    const from = freq;
+    const t0 = performance.now();
+    const step = (now: number): void => {
+      const k = Math.min(1, (now - t0) / 220);
+      freq = from + (STATION - from) * (1 - Math.pow(1 - k, 3));
+      if (k >= 1) freq = STATION;
+      render();
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  const stop = (): void => {
+    if (dragging) settle();
+    dragging = false;
+  };
   glass.addEventListener('pointerup', stop);
   glass.addEventListener('pointercancel', stop);
 
@@ -443,6 +463,19 @@ function main(): void {
   };
   setInterval(updateClock, 1000);
   updateClock();
+
+  // On a slow phone the first song can take a few seconds to arrive: say so instead of looking dead.
+  let waiting = false;
+  setInterval(() => {
+    const sounding = !!audioCtx && audioCtx.state === 'running' && playerState.scheduledNodes.length > 0;
+    if (wasLocked && !sounding) {
+      waiting = true;
+      $('meta').textContent = 'tuning in...';
+    } else if (waiting) {
+      waiting = false;
+      if (wasLocked) applyNowPlaying(playerState.currentSegment);
+    }
+  }, 400);
 
   render();
 }
