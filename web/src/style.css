@@ -1,0 +1,294 @@
+:root {
+  --bg: #050607;
+  --panel: #0f1112;
+  --edge: #23272a;
+  --amber: #ff7a1a;
+  --amber-dim: #6b3a12;
+  --ink: #e9e3d4;
+  --muted: #7f7a70;
+  --glass: #120d07;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Oswald", system-ui, sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px 16px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.tag {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.radio {
+  width: min(720px, 100%);
+  background: linear-gradient(#17191b, #0b0c0d);
+  border: 1px solid var(--edge);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: 0 30px 80px #000, inset 0 1px 0 #2a2e31;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: var(--amber);
+  text-shadow: 0 0 calc(var(--lock) * 18px) var(--amber);
+}
+
+.clock {
+  font-family: "Special Elite", monospace;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.onair {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--amber-dim);
+  color: var(--amber-dim);
+  transition: all 0.4s;
+}
+
+.onair.live {
+  color: #111;
+  background: var(--amber);
+  border-color: var(--amber);
+  box-shadow: 0 0 18px var(--amber);
+}
+
+.glass {
+  position: relative;
+  height: 120px;
+  background: radial-gradient(
+    ellipse at 50% 120%,
+    rgba(255, 122, 26, calc(0.08 + var(--lock) * 0.25)),
+    transparent 70%
+  ), var(--glass);
+  border: 1px solid #2a2016;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+.glass:focus-visible {
+  box-shadow: 0 0 0 2px var(--amber);
+}
+
+.glass:active {
+  cursor: grabbing;
+}
+
+.scale {
+  position: absolute;
+  inset: 0;
+}
+
+.tick {
+  position: absolute;
+  bottom: 30px;
+  width: 1px;
+  background: #7a5a3a;
+}
+
+.label {
+  position: absolute;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #b08a5e;
+  font-family: "Special Elite", monospace;
+}
+
+.label.pirate {
+  color: var(--amber);
+}
+
+.endband {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed #5a3a1e;
+}
+
+.endband span {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  font-size: 10px;
+  color: #6d4c2c;
+  letter-spacing: 0.15em;
+  white-space: nowrap;
+}
+
+.needle {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: #ff3b1a;
+  box-shadow: 0 0 10px #ff3b1a;
+  transform: translateX(-1px);
+}
+
+.freq {
+  position: absolute;
+  left: 12px;
+  top: 8px;
+  font-family: "Special Elite", monospace;
+  font-size: 22px;
+  color: var(--amber);
+  opacity: calc(0.45 + var(--lock) * 0.55);
+}
+
+.meters {
+  display: flex;
+  gap: 14px;
+  margin-top: 16px;
+  align-items: center;
+}
+
+.meter {
+  flex: 1;
+  height: 10px;
+  background: #08090a;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.meter i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3a2a10, var(--amber));
+  transition: width 0.08s;
+}
+
+.mlabel {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+}
+
+.now {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--panel);
+  min-height: 92px;
+}
+
+.now .k {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+
+.now .t {
+  font-size: 22px;
+  margin-top: 4px;
+}
+
+.now .m {
+  color: var(--muted);
+  font-family: "Special Elite", monospace;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.now .quote {
+  font-family: "Special Elite", monospace;
+  color: var(--amber);
+  margin-top: 8px;
+  font-size: 14px;
+  min-height: 18px;
+}
+
+.btn {
+  margin-top: 16px;
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--amber);
+  color: #120a03;
+  font: 600 16px "Oswald", sans-serif;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+}
+
+.btn:focus-visible {
+  outline: 3px solid #ff3b1a;
+  outline-offset: 2px;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--edge);
+}
+
+.soon {
+  width: min(720px, 100%);
+  text-align: center;
+  color: var(--muted);
+  font-family: "Special Elite", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.soon b {
+  color: var(--ink);
+  font-weight: normal;
+}
+
+footer {
+  color: #4d4a44;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .now .t {
+    font-size: 18px;
+  }
+  .mlabel {
+    display: none;
+  }
+}

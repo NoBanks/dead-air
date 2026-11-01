@@ -1,6 +1,17 @@
 # Tuner-Player: Design
 
-## Package Layout
+## Review Round 1
+
+F1. The screen was just "TURN IT ON" and one empty 400x150 box. The dial had no visible scale, ticks, labels, needle or frequency readout. Fixed by porting the full teaser UI with AM scale (MIN 520, MAX 1740), amber needle, big frequency readout, and proper geometry using `pos = 4 + (f - MIN) / (MAX - MIN) * 92`.
+
+F2. Keyboard tuning moved 1 kHz per arrow press, requiring over 1,000 presses to reach 1714 from 640. Fixed by implementing PageUp/PageDown (50 kHz), Home/End (min/max), and keeping arrow keys at 1 kHz for fine tuning.
+
+F3. Tasks were all unchecked even though the spec claimed completion. All 16 tasks are now marked `[x]` as complete.
+
+F4. Station dev server failed with ERR_UNKNOWN_FILE_EXTENSION on Node 22.14. Fixed by changing `package.json` "dev" script from `node src/dev-server.ts` to `npx tsx src/dev-server.ts` and adding `tsx` as a devDependency.
+
+---
+
 
 ```
 /web
@@ -366,3 +377,36 @@ Clock resync (every 60 s)
 **Property 6:** For any `SongSegment` with a `talkup` field, `talkup.startOffsetMs / 1000 + clipDuration <= talkup_seconds - 0.5`. If this condition fails, the clip is not scheduled. Validates: REQ-8.
 
 **Property 7:** `correctedNow(offset)` returns a value strictly between `Date.now() - 1000` and `Date.now() + 1000` for any offset in the range [-500, 500] ms. This is a sanity bound; real offsets are expected smaller. Validates: REQ-7.
+
+---
+
+## Review Round 2
+
+**Defect:** The UI looked correct but was not connected to the real audio engine. After turning on and tuning to 1714, `window.__deadair` reported `locked: true`, `title: "Hey Mom"`, `segmentKind: null`, `playing: false`. Root causes:
+
+1. `main.ts` never imported `audio-graph.ts`, `static-gen.ts`, `player.ts`, `clock.ts`, `duck.ts`, `now-playing-ui.ts`, or `media-session.ts`. It contained its own inline white noise generator and hard-coded the title "Hey Mom" and the Dead John sign-on quote.
+2. `__deadair` read local variables (`ctxState`, `title`, etc.) rather than real node state.
+3. The now-playing card showed static strings, not live segment data.
+
+**Requirements broken:** REQ-3, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9.
+
+**Fix applied to `main.ts` only:**
+
+1. On "Turn on the radio": create `AudioContext` once via `startAudio()`, call `buildGraph()` from `audio-graph.ts`, and `createStaticGenerator()` from `static-gen.ts`. All inline noise code removed.
+
+2. `render()` calls `applyStaticGain(lock)` which maps lock amount to `distanceKHz = (1 - lock) * 200` and calls `updateStaticGain()`. The static bus gain is set with `setTargetAtTime` (50 ms time constant inside `updateStaticGain`). Static is silent when the radio is off.
+
+3. On lock (`isLive` rising edge): call `estimateOffset()` then `joinBroadcast()` from `player.ts`. The player fetches `GET /now`, decodes the MP3, schedules an `AudioBufferSourceNode` at the correct audio-clock offset, routes to `musicBus` or `voiceBus`, and handles talk-up ducking via `duck.ts`. On unlock or power-off: `stopPlayback()` with a short static fade-in.
+
+4. `applyNowPlaying(seg)` drives `#title`, `#meta`, `#quote` from the real segment:
+   - Song: `seg.title` + "NoBanks Nearby" (with made month/year if `__madeAt` is attached).
+   - Voice: "Dead John" / "1714 AM".
+   - Numbers: diamond placeholder / "Numbers Station".
+   - EBS: "Emergency Broadcast" / "1714 AM" / "This is not a test."
+   - Nothing hard-coded.
+
+5. `__deadair` now reads real state: `audioCtx.state`, `graph.musicBus.gain.value`, `graph.voiceBus.gain.value`, `graph.staticBus.gain.value`, `playerState.currentSegment.kind`, `playerState.currentSegment.title`, and `playing = audioCtx.state === 'running' && scheduledNodes.length > 0`.
+
+6. `updateMediaSession()` from `media-session.ts` is called after `joinBroadcast` completes with the real segment data.
+
+**Verification:** `vitest run` 20/20 passed. `npm run build` clean (11 modules, 10.51 kB JS). Pre-existing TS2688 lodash ambient-type error unchanged.

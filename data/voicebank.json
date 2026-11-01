@@ -1,0 +1,235 @@
+{
+ "clips": [
+  {
+   "id": "signon_main",
+   "kind": "signon",
+   "text": "I'm Dead John, coming to you LIVE, and this... is DEAD AIR.",
+   "seconds": 3.74,
+   "file": "/voice/signon_main.mp3"
+  },
+  {
+   "id": "signon_alt1",
+   "kind": "signon",
+   "text": "Seventeen fourteen on your A M dial. I'm Dead John, coming to you LIVE, and this... is DEAD AIR.",
+   "seconds": 7.66,
+   "file": "/voice/signon_alt1.mp3"
+  },
+  {
+   "id": "signon_alt2",
+   "kind": "signon",
+   "text": "If you can hear this, you found us. I'm Dead John, coming to you LIVE, and this... is DEAD AIR.",
+   "seconds": 6.7,
+   "file": "/voice/signon_alt2.mp3"
+  },
+  {
+   "id": "id_01",
+   "kind": "id",
+   "text": "DEAD AIR. Seventeen fourteen A M. Past the end of the dial.",
+   "seconds": 5.34,
+   "file": "/voice/id_01.mp3"
+  },
+  {
+   "id": "id_02",
+   "kind": "id",
+   "text": "You're tuned to seventeen fourteen. No license. No sign off. No problem.",
+   "seconds": 5.74,
+   "file": "/voice/id_02.mp3"
+  },
+  {
+   "id": "id_03",
+   "kind": "id",
+   "text": "This is DEAD AIR. The station that never learned how to stop.",
+   "seconds": 4.54,
+   "file": "/voice/id_03.mp3"
+  },
+  {
+   "id": "id_04",
+   "kind": "id",
+   "text": "Seventeen fourteen A M. If you can hear me, you're closer than you think.",
+   "seconds": 5.34,
+   "file": "/voice/id_04.mp3"
+  },
+  {
+   "id": "id_05",
+   "kind": "id",
+   "text": "Radio's dead. Turn it up anyway. This is DEAD AIR.",
+   "seconds": 4.38,
+   "file": "/voice/id_05.mp3"
+  },
+  {
+   "id": "tophour_01",
+   "kind": "id",
+   "text": "Top of the hour on DEAD AIR. Nobody's coming to fix the signal, so let's keep going.",
+   "seconds": 6.46,
+   "file": "/voice/tophour_01.mp3"
+  },
+  {
+   "id": "tophour_02",
+   "kind": "id",
+   "text": "Another hour on the graveyard shift. I'm Dead John. I'm not going anywhere. I tried.",
+   "seconds": 6.3,
+   "file": "/voice/tophour_02.mp3"
+  },
+  {
+   "id": "checkin_03",
+   "kind": "break",
+   "text": "If you're driving, keep your eyes on the road. If you're not driving... keep your eyes on the window.",
+   "seconds": 6.06,
+   "file": "/voice/checkin_03.mp3"
+  },
+  {
+   "id": "time_314",
+   "kind": "break",
+   "text": "It's fourteen past three. It's always fourteen past three somewhere. Usually here.",
+   "seconds": 5.5,
+   "file": "/voice/time_314.mp3"
+  },
+  {
+   "id": "time_late",
+   "kind": "break",
+   "text": "It's late. It's been late for a long time.",
+   "seconds": 3.66,
+   "file": "/voice/time_late.mp3"
+  },
+  {
+   "id": "marty_01",
+   "kind": "marty",
+   "text": "Marty, you there? ...Marty's not there. Marty's never there.",
+   "seconds": 5.58,
+   "file": "/voice/marty_01.mp3"
+  },
+  {
+   "id": "marty_02",
+   "kind": "marty",
+   "text": "Marty says the transmitter's fine. I haven't heard from Marty since the storm, but I believe him.",
+   "seconds": 5.66,
+   "file": "/voice/marty_02.mp3"
+  },
+  {
+   "id": "coffee_01",
+   "kind": "break",
+   "text": "Coffee's cold. Coffee's been cold since the night of the storm. Still drinking it.",
+   "seconds": 5.02,
+   "file": "/voice/coffee_01.mp3"
+  },
+  {
+   "id": "weather_01",
+   "kind": "break",
+   "text": "Weather for the overnight. Fog rolling in off nothing. Low of never. Bring a coat anyway.",
+   "seconds": 7.42,
+   "file": "/voice/weather_01.mp3"
+  },
+  {
+   "id": "weather_02",
+   "kind": "break",
+   "text": "Forecast says static, with a chance of somebody calling your name. Don't answer.",
+   "seconds": 5.5,
+   "file": "/voice/weather_02.mp3"
+  },
+  {
+   "id": "weather_03",
+   "kind": "break",
+   "text": "Clear skies tonight. You can see every star. Some of them went out a long time ago. Same as me.",
+   "seconds": 7.66,
+   "file": "/voice/weather_03.mp3"
+  },
+  {
+   "id": "request_open",
+   "kind": "request",
+   "text": "The request line is open. Tell me who it's for. I'll read it on the air. The dead are great listeners.",
+   "seconds": 7.82,
+   "file": "/voice/request_open.mp3"
+  },
+  {
+   "id": "request_intro",
+   "kind": "request",
+   "text": "Got a call on the request line. Let me read this one just like they wrote it.",
+   "seconds": 5.02,
+   "file": "/voice/request_intro.mp3"
+  },
+  {
+   "id": "request_close",
+   "kind": "request",
+   "text": "That one's for you. Wherever you are tonight.",
+   "seconds": 3.58,
+   "file": "/voice/request_close.mp3"
+  },
+  {
+   "id": "sponsor_01",
+   "kind": "sponsor",
+   "text": "DEAD AIR is brought to you by Hollow Pines Motor Lodge. Vacancy. Always vacancy.",
+   "seconds": 7.02,
+   "file": "/voice/sponsor_01.mp3"
+  },
+  {
+   "id": "sponsor_02",
+   "kind": "sponsor",
+   "text": "This hour brought to you by Orpheum Drive In. Tonight's double feature starts the minute you stop looking for it.",
+   "seconds": 6.78,
+   "file": "/voice/sponsor_02.mp3"
+  },
+  {
+   "id": "sponsor_03",
+   "kind": "sponsor",
+   "text": "Brought to you by Gable's Twenty Four Hour Diner. The lights are on. Nobody remembers turning them on.",
+   "seconds": 7.18,
+   "file": "/voice/sponsor_03.mp3"
+  },
+  {
+   "id": "frontsell_01",
+   "kind": "talkup",
+   "text": "Stay close. Something you haven't heard in a while is coming up next.",
+   "seconds": 4.14,
+   "file": "/voice/frontsell_01.mp3"
+  },
+  {
+   "id": "frontsell_02",
+   "kind": "talkup",
+   "text": "Don't touch that dial. You couldn't if you tried.",
+   "seconds": 3.74,
+   "file": "/voice/frontsell_02.mp3"
+  },
+  {
+   "id": "backsell_generic",
+   "kind": "backsell",
+   "text": "That was NoBanks Nearby, right here on seventeen fourteen.",
+   "seconds": 4.3,
+   "file": "/voice/backsell_generic.mp3"
+  },
+  {
+   "id": "midnight_handoff",
+   "kind": "midnight",
+   "text": "It's midnight. I have to step away from the microphone for a few minutes. Whatever you hear next... it isn't me. Don't write it down.",
+   "seconds": 8.7,
+   "file": "/voice/midnight_handoff.mp3"
+  },
+  {
+   "id": "midnight_return",
+   "kind": "midnight",
+   "text": "I'm back. Did you write it down? ...I told you not to write it down.",
+   "seconds": 4.06,
+   "file": "/voice/midnight_return.mp3"
+  },
+  {
+   "id": "ebs_after",
+   "kind": "storm",
+   "text": "That was only a test. I think. Nobody tells me anything anymore.",
+   "seconds": 4.22,
+   "file": "/voice/ebs_after.mp3"
+  },
+  {
+   "id": "signoff_never",
+   "kind": "signoff",
+   "text": "This is usually where a DJ signs off. I tried that once. It didn't take. Stay with me.",
+   "seconds": 6.62,
+   "file": "/voice/signoff_never.mp3"
+  },
+  {
+   "id": "storm_hint",
+   "kind": "storm",
+   "text": "The night the tower went down, I was right in the middle of a sentence. Some nights I think I'm still finishing it.",
+   "seconds": 8.38,
+   "file": "/voice/storm_hint.mp3"
+  }
+ ]
+}

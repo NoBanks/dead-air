@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DEAD AIR | 1714 AM</title>
+  <meta name="description" content="A pirate radio station past the end of the dial. Radio's dead. Turn it up anyway.">
+  <meta property="og:title" content="DEAD AIR | 1714 AM">
+  <meta property="og:description" content="Radio's dead. Turn it up anyway. Tune in to 1714.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://deadair.nohumannearby.com/">
+  <meta name="theme-color" content="#050607">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Oswald:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div class="tag">Radio's dead. Turn it up anyway.</div>
+
+  <div class="radio" id="radio" style="--lock: 0">
+    <div class="top">
+      <div class="brand">DEAD AIR</div>
+      <div class="onair" id="onair">ON AIR</div>
+      <div class="clock" id="clock">&nbsp;</div>
+    </div>
+    <div class="glass" id="glass" tabindex="0" role="slider" aria-label="Tuning dial" aria-valuemin="520" aria-valuemax="1740" aria-valuenow="640">
+      <div class="scale" id="scale"></div>
+      <div class="needle" id="needle"></div>
+      <div class="freq" id="freq">640</div>
+    </div>
+    <div class="meters">
+      <span class="mlabel">SIGNAL</span><div class="meter"><i id="sig"></i></div>
+      <span class="mlabel">STATIC</span><div class="meter"><i id="stat"></i></div>
+    </div>
+    <div class="now" aria-live="polite" aria-atomic="true">
+      <div class="k">NOW PLAYING</div>
+      <div class="t" id="title">Nothing but static</div>
+      <div class="m" id="meta">Turn on the radio. Then tap the dial near 1714.</div>
+      <div class="quote" id="quote"></div>
+    </div>
+    <button class="btn" id="power">TURN ON THE RADIO</button>
+  </div>
+
+  <div class="soon"><b>The full broadcast is coming.</b><br>A late night DJ who never signed off. Eleven hundred songs. Something hidden on the dial.<br>Keep this frequency.</div>
+  <footer>All music by NoBanks Nearby. All rights reserved.</footer>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

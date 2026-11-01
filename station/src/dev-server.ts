@@ -1,12 +1,12 @@
 import express from "express";
-import { readFileSync } from "fs";
+import { readFileSync, statSync, createReadStream } from "fs";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { handleRequest } from "./core/handler.js";
 import type { Track, Voicebank, FeaturedEntry } from "./core/types.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const projectRoot = resolve(__dirname, "..");
+const projectRoot = resolve(__dirname, "..", ".."); // src -> station -> repo root (data/ lives there)
 
 const app = express();
 
@@ -42,6 +42,10 @@ try {
   console.warn("Could not load featured.json");
 }
 
+// Get audio directories from environment variables
+const libraryOut = process.env.LIBRARY_OUT || "C:\\Users\\machi\\.deadair\\library_mp3";
+const voiceOut = process.env.VOICE_OUT || "C:\\Users\\machi\\.deadair\\voice_mp3";
+
 // GET /now endpoint
 app.get("/now", async (req, res) => {
   const mockRequest = new Request(
@@ -65,9 +69,103 @@ app.get("/now", async (req, res) => {
   res.send(await response.text());
 });
 
+// GET /audio/<file> endpoint with Range support
+app.get("/audio/:file", (req, res) => {
+  const filePath = resolve(libraryOut, req.params.file);
+  
+  // Security: ensure path is within libraryOut
+  if (!filePath.startsWith(libraryOut)) {
+    return res.status(403).send("Forbidden");
+  }
+
+  try {
+    const stat = statSync(filePath);
+    const fileSize = stat.size;
+
+    // Handle Range header
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      res.status(206);
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Content-Length", end - start + 1);
+      res.setHeader("Content-Type", "audio/mpeg");
+
+      const stream = createReadStream(filePath, { start, end });
+      stream.pipe(res);
+    } else {
+      res.setHeader("Content-Length", fileSize);
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Accept-Ranges", "bytes");
+      const stream = createReadStream(filePath);
+      stream.pipe(res);
+    }
+  } catch (e) {
+    res.status(404).send("Not Found");
+  }
+});
+
+// GET /voice/<file> endpoint with Range support
+app.get("/voice/:file", (req, res) => {
+  const filePath = resolve(voiceOut, req.params.file);
+  
+  // Security: ensure path is within voiceOut
+  if (!filePath.startsWith(voiceOut)) {
+    return res.status(403).send("Forbidden");
+  }
+
+  try {
+    const stat = statSync(filePath);
+    const fileSize = stat.size;
+
+    // Handle Range header
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      res.status(206);
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Content-Length", end - start + 1);
+      res.setHeader("Content-Type", "audio/mpeg");
+
+      const stream = createReadStream(filePath, { start, end });
+      stream.pipe(res);
+    } else {
+      res.setHeader("Content-Length", fileSize);
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Accept-Ranges", "bytes");
+      const stream = createReadStream(filePath);
+      stream.pipe(res);
+    }
+  } catch (e) {
+    res.status(404).send("Not Found");
+  }
+});
+
+// GET /signal endpoint - return 404 for all frequencies except 1714
+app.get("/signal", (req, res) => {
+  const freqParam = req.query.f as string;
+  const freq = parseInt(freqParam, 10);
+
+  if (freq === 1714) {
+    res.json({ locked: true });
+  } else {
+    res.status(404).send("Not Found");
+  }
+});
+
 const port = 8787;
 const server = app.listen(port, () => {
   console.log(`Dev server listening on http://localhost:${port}`);
+  console.log(`Audio directory: ${libraryOut}`);
+  console.log(`Voice directory: ${voiceOut}`);
 });
 
 // Graceful shutdown
