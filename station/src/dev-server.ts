@@ -253,7 +253,19 @@ if (staticDir) {
     );
     next();
   });
-  app.use(express.static(staticDir, { index: "index.html", maxAge: "1h" }));
+  // Hashed assets can be cached for good; the page itself must always be revalidated, or
+  // listeners keep running an old build after a deploy.
+  app.use(
+    express.static(staticDir, {
+      index: "index.html",
+      setHeaders: (res, path) => {
+        res.setHeader(
+          "Cache-Control",
+          /[\\/]assets[\\/]/.test(path) ? "public, max-age=31536000, immutable" : "no-cache"
+        );
+      },
+    })
+  );
   console.log(`Serving tuner from ${staticDir}`);
 }
 

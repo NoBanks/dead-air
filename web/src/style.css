@@ -438,17 +438,20 @@ footer {
   bottom: 24px;
   max-width: calc(100vw - 32px);
   padding: 12px 18px;
-  transform: translate(-50%, 140%);
+  transform: translate(-50%, calc(100% + 40px));
+  visibility: hidden;
   background: #e8dcc0;
   color: #2a1d10;
   font-family: "Special Elite", monospace;
   border-radius: 4px;
   box-shadow: 0 10px 30px #000;
-  transition: transform 0.4s;
+  transition: transform 0.4s, visibility 0s 0.4s;
 }
 
 .lb-toast.show {
   transform: translate(-50%, 0);
+  visibility: visible;
+  transition: transform 0.4s;
 }
 
 /* ---- Request line ----------------------------------------------------- */
