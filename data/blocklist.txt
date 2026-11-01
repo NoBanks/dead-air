@@ -1,0 +1,39 @@
+# Request line moderation list (server only, never sent to the browser).
+# One term or phrase per line. Matching ignores case, spacing, punctuation and common
+# number-for-letter swaps. Terms of 4 letters or fewer match whole words only.
+fuck
+shit
+bitch
+cunt
+cock
+dick
+pussy
+asshole
+bastard
+whore
+slut
+fag
+faggot
+nigger
+nigga
+retard
+kike
+spic
+chink
+tranny
+nazi
+hitler
+kill yourself
+kys
+suicide
+murder
+rape
+shoot up
+bomb
+terrorist
+porn
+nude
+nudes
+onlyfans
+crypto giveaway
+free money

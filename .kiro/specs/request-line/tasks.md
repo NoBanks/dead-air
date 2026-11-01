@@ -14,19 +14,19 @@ Status key: all tasks are [ ] (not started).
   Add optional `inserts?: Insert[]` param. At each break, check whether the next unconsumed insert's `airAt <= cursor`; if so, use its clip and inject its song (or the next queued song if the requested one already aired). Do not alter any segment before `airAt`.
   _Covers: P1 (no retroactive change), P2 (tiling preserved), P3 (at most one request per break)_
 
-- [ ] **S-3: `POST /request` handler**
+- [x] **S-3: `POST /request` handler**
   In `station/src/core/handler.ts`: parse body, run validation pipeline (field lengths, character allowlist, URL/email/@handle/digit-run patterns, blocklist scan against `data/blocklist.txt`), apply per-IP and station-wide rate limits from KV, store `RequestRecord` with status `queued`, return 202 or 400/429 with a Dead John reason phrase.
   _Covers: P4 (rejected request never queued), P6 (blocklist never sent to browser)_
 
-- [ ] **S-4: `GET /request/<ticket>` handler**
+- [x] **S-4: `GET /request/<ticket>` handler**
   Read KV record by ticket; return public status view. When `scheduled`, format `airAt` as `HH:MM AM/PM` in the timezone given by `TZ` query param (default `America/Los_Angeles`). Never return `ip`, `clipFile`, or reason for `dropped`.
   _Covers: REQ-14_
 
-- [ ] **S-5: KV schema and `airAt` index**
+- [x] **S-5: KV schema and `airAt` index**
   Define KV key patterns (`req:<ticket>`, `rate:ip:<hash>`, `rate:station`, `airAt:<dayIndex>:<ms>`). Document TTLs. Provide a helper module `station/src/core/kv.ts` with typed read/write wrappers.
   _Covers: P3 (10-minute spacing enforced at write time)_
 
-- [ ] **S-6: `data/blocklist.txt`**
+- [x] **S-6: `data/blocklist.txt`**
   Create the file with an initial set of blocked phrases. One phrase per line, lowercase, no regex.
   _Covers: P4, P6_
 
@@ -84,11 +84,11 @@ Status key: all tasks are [ ] (not started).
   Assert that no two consecutive voice segments both have `clipKind == "request"` and that all pairs of request-clip start times are >= 600 000 ms apart.
   _Covers: P3_
 
-- [ ] **T-4: Validation unit tests** (`station/tests/request-validation.test.ts`)
+- [x] **T-4: Validation unit tests** (`station/tests/request-validation.test.ts`)
   Cover: all allowlist edge cases, URL/email/@handle/digit-run rejection, blocklist match, field length boundaries.
   _Covers: P4_
 
-- [ ] **T-5: Blocklist server-only test** (`station/tests/request-validation.test.ts`)
+- [x] **T-5: Blocklist server-only test** (`station/tests/request-validation.test.ts`)
   Assert that the `POST /request` response body on a blocklist hit contains no substring from the submitted text and no substring from `blocklist.txt`.
   _Covers: P6_
 
@@ -104,8 +104,9 @@ Status key: all tasks are [ ] (not started).
   Given two requests rendered within 2 minutes of each other, assert their assigned `airAt` values differ by >= 600 000 ms.
   _Covers: P3, REQ-25_
 
-- [ ] **T-9: Rate limit tests** (`station/tests/request-handler.test.ts`)
+- [x] **T-9: Rate limit tests** (`station/tests/request-handler.test.ts`)
   Assert 429 on the 2nd POST from the same IP within 10 minutes, and on the 31st POST station-wide within 60 minutes.
   _Covers: REQ-10, REQ-11_
 
 Note (Claude, Nov 1): S-2 threads inserts through Voicebank.inserts so nowPlaying/schedule need no signature change. T-1..T-3 live in station/tests/request.property.test.ts.
+Note (Claude, Nov 1): S-5 is a JsonFileStore behind the RequestStore interface (laptop); a KV adapter comes with Cloudflare hosting. Callers are told apart by a salted hash, raw IPs are never stored.

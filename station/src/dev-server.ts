@@ -5,6 +5,18 @@ import { fileURLToPath } from "url";
 import { handleRequest } from "./core/handler.js";
 import type { Track, Voicebank, FeaturedEntry } from "./core/types.js";
 import type { HuntConfig } from "./core/hunt.js";
+import { createHash, randomUUID } from "crypto";
+import { homedir } from "os";
+import {
+  validateRequest,
+  parseBlocklist,
+  RateLimiter,
+  REASONS,
+  publicStatus,
+  toInserts,
+  type RequestRecord,
+} from "./core/request.js";
+import { JsonFileStore } from "./request-store.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const projectRoot = resolve(__dirname, "..", ".."); // src -> station -> repo root (data/ lives there)
@@ -54,6 +66,24 @@ try {
 const libraryOut = process.env.LIBRARY_OUT || "C:\\Users\\machi\\.deadair\\library_mp3";
 const voiceOut = process.env.VOICE_OUT || "C:\\Users\\machi\\.deadair\\voice_mp3";
 
+// --- Request line (request-line spec) --------------------------------------
+// Queue and rendered reads live outside the repo; the studio worker on this laptop fills them in.
+const requestsDir = process.env.REQUESTS_DIR || resolve(homedir(), ".deadair", "requests");
+const requestStore = new JsonFileStore(resolve(requestsDir, "requests.json"));
+const limiter = new RateLimiter();
+let blocklist: string[] = [];
+try {
+  blocklist = parseBlocklist(readFileSync(resolve(projectRoot, "data", "blocklist.txt"), "utf-8"));
+} catch {
+  console.warn("Could not load blocklist.txt");
+}
+const songIds = new Set(library.map((t) => t.id));
+const songTitles = new Map(library.map((t) => [t.id, t.title]));
+// Callers are told apart by a salted hash of their address; raw IPs are never stored.
+const salt = randomUUID();
+const callerOf = (req: express.Request) =>
+  createHash("sha256").update(salt + String(req.headers["cf-connecting-ip"] || req.ip)).digest("hex").slice(0, 16);
+
 // Route /now and /signal through the shared handler.
 async function routeHandler(req: express.Request, res: express.Response) {
   const mockRequest = new Request(
@@ -63,7 +93,8 @@ async function routeHandler(req: express.Request, res: express.Response) {
 
   const response = await handleRequest(mockRequest, {
     library,
-    voicebank,
+    // Scheduled listener requests are part of the day (they only change what airs after airAt).
+    voicebank: { ...voicebank, inserts: toInserts(await requestStore.list()) },
     featured,
     epoch: epochMs,
     hunt,
@@ -79,6 +110,50 @@ async function routeHandler(req: express.Request, res: express.Response) {
 
 app.get("/now", routeHandler);
 app.get("/signal", routeHandler);
+
+// Song list for the request form (titles are public anyway).
+app.get("/songs", (_req, res) => {
+  res.setHeader("Cache-Control", "max-age=3600");
+  res.json(library.map((t) => ({ id: t.id, title: t.title })));
+});
+
+app.post("/request", express.json({ limit: "2kb" }), async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const caller = callerOf(req);
+  const now = Date.now();
+  const limit = limiter.check(caller, now);
+  if (limit !== "ok") return res.status(429).json({ reason: limit === "slow" ? REASONS.slow : REASONS.busy });
+  const v = validateRequest(req.body ?? {}, blocklist, songIds);
+  if (!v.ok) return res.status(400).json({ reason: v.reason });
+  limiter.accept(caller, now);
+  const rec: RequestRecord = {
+    ticket: randomUUID(),
+    ...v.value,
+    songTitle: songTitles.get(v.value.songId) || "",
+    createdAt: now,
+    status: "queued",
+  };
+  await requestStore.put(rec);
+  res.status(202).json({
+    ticket: rec.ticket,
+    message: "Got it. Stay tuned to 1714. I'll read it in a few minutes.",
+  });
+});
+
+app.get("/request/:ticket", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const tz = typeof req.query.tz === "string" ? req.query.tz : undefined;
+  res.json(publicStatus(await requestStore.get(req.params.ticket), tz));
+});
+
+// Rendered request reads (written by the studio worker).
+app.get("/requests/:file", (req, res) => {
+  const filePath = resolve(requestsDir, req.params.file);
+  if (!filePath.startsWith(requestsDir) || !filePath.endsWith(".mp3")) return res.status(403).send("Forbidden");
+  res.sendFile(filePath, (err) => {
+    if (err && !res.headersSent) res.status(404).send("Not Found");
+  });
+});
 
 // GET /audio/<file> endpoint with Range support
 app.get("/audio/:file", (req, res) => {
