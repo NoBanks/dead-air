@@ -44,6 +44,15 @@ describe('Logbook', () => {
     expect(lb.finaleDue()).toBe(false);
   });
 
+  it('two tabs merge progress instead of overwriting each other', async () => {
+    const tabA = await fresh();
+    const tabB = await fresh(); // loaded before A finds anything
+    tabA.record('marty', 870);
+    tabB.heardNumbers(); // B saves with its stale memory
+    expect((await fresh()).isFound('marty')).toBe(true);
+    expect((await fresh()).numbersHeard()).toBe(true);
+  });
+
   it('still works when storage throws (private windows)', async () => {
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
     const lb = await fresh();

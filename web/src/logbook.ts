@@ -46,15 +46,39 @@ interface State {
 
 const KEY = 'deadair.logbook.v1';
 let state: State = { found: {}, ads: [], numbersHeard: false, finaleDone: false };
-try {
-  const raw = localStorage.getItem(KEY);
-  if (raw) state = { ...state, ...JSON.parse(raw) };
-} catch {
-  // Private window or blocked storage: the hunt still works for this visit.
+
+// Progress only ever grows, so two tabs merge instead of overwriting each other.
+function merge(a: State, b: Partial<State>): State {
+  return {
+    found: { ...(b.found ?? {}), ...a.found },
+    ads: [...new Set([...a.ads, ...(b.ads ?? [])])],
+    numbersHeard: a.numbersHeard || !!b.numbersHeard,
+    finaleDone: a.finaleDone || !!b.finaleDone,
+  };
 }
+function stored(): Partial<State> {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    // Private window or blocked storage: the hunt still works for this visit.
+    return {};
+  }
+}
+state = merge(state, stored());
 const save = (): void => {
+  state = merge(state, stored());
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* see above */ }
 };
+try {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY) return;
+    state = merge(state, stored());
+    emit(null);
+  });
+} catch {
+  // No window (tests): nothing to sync.
+}
 
 const listeners = new Set<(newPage: Page | null) => void>();
 export function onLogbookChange(fn: (newPage: Page | null) => void): void {
