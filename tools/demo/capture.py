@@ -240,7 +240,54 @@ def finale(tab):
     record_stop(tab, "finale")
 
 
-SCENES = {"tune_in": tune_in, "hidden": hidden, "logbook": logbook, "request": request, "finale": finale}
+def github_page(tab, url, scroll_px, hold=2.5, steps=60, step_s=0.05):
+    """Navigate (the screencast keeps running across navigations), settle, then glide down."""
+    tab.send("Page.navigate", {"url": url})
+    time.sleep(3.5)
+    tab.ev("document.documentElement.style.scrollBehavior='auto'")
+    time.sleep(hold)
+    for i in range(1, steps + 1):  # ease in and out, like a hand on a scroll wheel
+        f = (1 - __import__("math").cos(3.14159 * i / steps)) / 2
+        tab.ev(f"window.scrollTo(0, {int(scroll_px * f)})")
+        time.sleep(step_s)
+    time.sleep(hold)
+
+
+def kiro(tab):
+    """The Kiro side, on the public repo: specs, a spec's requirements, hooks, the MCP server."""
+    base = "https://github.com/NoBanks/dead-air"
+    tab.send("Page.enable")
+    tab.send("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 720, "deviceScaleFactor": 1.5, "mobile": False})
+    tab.send("Emulation.setScrollbarsHidden", {"hidden": True})
+    tab.send("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark"}]})
+    tab.send("Page.navigate", {"url": base + "/tree/main/.kiro/specs"})
+    time.sleep(5)
+    urllib.request.urlopen("http://127.0.0.1:9333/json/activate/" + tab.info["id"])
+    record_start(tab)
+    time.sleep(3)
+    github_page(tab, base + "/blob/main/.kiro/specs/the-hunt/requirements.md", 1400)
+    github_page(tab, base + "/blob/main/.kiro/specs/broadcast-clock/design.md", 1800)
+    github_page(tab, base + "/blob/main/.kiro/hooks/dead-air.json", 500)
+    github_page(tab, base + "/blob/main/.kiro/steering/dead-john.md", 900)
+    github_page(tab, base + "/blob/main/.kiro/settings/mcp.json", 0)
+    record_stop(tab, "kiro")
+
+
+def tests(tab):
+    """Replay of the real vitest runs (tests_page.py builds tests.html from saved output)."""
+    tab.send("Page.enable")
+    tab.send("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 720, "deviceScaleFactor": 1.5, "mobile": False})
+    tab.send("Emulation.setScrollbarsHidden", {"hidden": True})
+    tab.send("Page.navigate", {"url": "about:blank"})
+    time.sleep(1)
+    urllib.request.urlopen("http://127.0.0.1:9333/json/activate/" + tab.info["id"])
+    record_start(tab)
+    tab.send("Page.navigate", {"url": "file:///" + os.path.join(OUT, "tests.html").replace("\\", "/")})
+    time.sleep(16)
+    record_stop(tab, "tests")
+
+
+SCENES = {"tests": tests, "kiro": kiro, "tune_in": tune_in, "hidden": hidden, "logbook": logbook, "request": request, "finale": finale}
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
