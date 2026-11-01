@@ -1,0 +1,59 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Library tests on save",
+      "description": "Run library tests when editing tools/library source",
+      "trigger": "PostFileSave",
+      "matcher": "tools/library/src/.*\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "npm --prefix tools/library test --silent"
+      },
+      "timeout": 60
+    },
+    {
+      "name": "Station tests on save",
+      "description": "Run station tests when editing station source",
+      "trigger": "PostFileSave",
+      "matcher": "station/src/.*\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "npm --prefix station test -- --run --silent"
+      },
+      "timeout": 60
+    },
+    {
+      "name": "Keep audio and secrets out of the repo",
+      "description": "Block commits of audio files and .env secrets",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/guard-writes.mjs"
+      },
+      "timeout": 10
+    },
+    {
+      "name": "Dead John lint",
+      "description": "Validate Dead John voice scripts for style rules",
+      "trigger": "PostFileSave",
+      "matcher": "(data/voicebank\\.json|scripts/lines/.*\\.(json|md))$",
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/dead-john-lint.mjs"
+      },
+      "timeout": 10
+    },
+    {
+      "name": "Task done means tests pass",
+      "description": "Run full test suite when task marked complete",
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/all-tests.mjs"
+      },
+      "timeout": 120
+    }
+  ]
+}

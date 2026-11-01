@@ -1,5 +1,7 @@
 ---
-inclusion: always
+---
+inclusion: fileMatch
+fileMatchPattern: "station/**,web/**,tools/library/**"
 ---
 
 # Audio standards
