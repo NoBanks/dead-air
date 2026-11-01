@@ -158,7 +158,25 @@ app.get("/voice/:file", (req, res) => {
   }
 });
 
-const port = 8787;
+// Production: serve the built tuner (web/dist) from the same origin as the API.
+// STATIC_DIR=<path to web/dist> PORT=<port> npx tsx src/dev-server.ts
+const staticDir = process.env.STATIC_DIR;
+if (staticDir) {
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'"
+    );
+    next();
+  });
+  app.use(express.static(staticDir, { index: "index.html", maxAge: "1h" }));
+  console.log(`Serving tuner from ${staticDir}`);
+}
+
+const port = Number(process.env.PORT) || 8787;
 const server = app.listen(port, () => {
   console.log(`Dev server listening on http://localhost:${port}`);
   console.log(`Audio directory: ${libraryOut}`);
