@@ -9,6 +9,7 @@ import { createStaticGenerator, updateStaticGain } from './static-gen.js';
 import {
   joinBroadcast,
   stopPlayback,
+  unlockStreaming,
   type PlayerState,
 } from './player.js';
 import { updateMediaSession } from './media-session.js';
@@ -141,8 +142,8 @@ function segmentLabel(seg: Segment | null): {
     return {
       title: 'Nothing but static',
       meta: on
-        ? 'Tap the dial near 1714, then slide slowly.'
-        : 'Turn on the radio. Then tap the dial near 1714.',
+        ? 'Slide back to 1714 for the station. Or keep looking.'
+        : 'Turn on the radio. It finds 1714 for you.',
       quote: '',
     };
   }
@@ -360,6 +361,7 @@ function main(): void {
     if (!on) {
       // First turn-on: create AudioContext (requires user gesture)
       startAudio();
+      if (audioCtx && graph) unlockStreaming(audioCtx, graph);
     }
     on = !on;
     powerBtn.textContent = on ? 'TURN IT OFF' : 'TURN ON THE RADIO';
@@ -376,7 +378,31 @@ function main(): void {
 
     glass.focus({ preventScroll: true });
     render();
+    // Nobody should have to hunt for the station itself: turning the radio on glides the needle
+    // through the static and onto 1714. Touching the dial takes over at any moment.
+    if (on && Math.abs(freq - STATION) > 1) autoTune();
   });
+
+  let autoTuning = 0;
+  const autoTune = (): void => {
+    const run = ++autoTuning;
+    const from = freq;
+    const t0 = performance.now();
+    const ms = 2800;
+    const step = (now: number): void => {
+      if (run !== autoTuning || !on) return;
+      const k = Math.min(1, (now - t0) / ms);
+      const ease = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      freq = k >= 1 ? STATION : from + (STATION - from) * ease;
+      render();
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  const takeOver = (): void => { autoTuning++; };
+  glass.addEventListener('pointerdown', takeOver, true);
+  glass.addEventListener('keydown', takeOver, true);
+  glass.addEventListener('wheel', takeOver, { capture: true, passive: true });
 
   // Dial input
   let dragging = false;

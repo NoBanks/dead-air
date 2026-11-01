@@ -113,6 +113,17 @@ async function scheduleSegment(
   source.start(at, skip, length - skip);
   track(state, source);
 
+  await scheduleTalkup(graph, ctx, state, seg, gen);
+}
+
+/** Dead John over a song intro, ending exactly on the post, with the music ducked under him. */
+async function scheduleTalkup(
+  graph: AudioGraph,
+  ctx: AudioContext,
+  state: PlayerState,
+  seg: Segment,
+  gen: number
+): Promise<void> {
   if (seg.kind !== 'song' || !(seg as SongSegment).talkup) return;
   const talkup = (seg as SongSegment).talkup!;
   const clip = await fetchAndDecode(ctx, talkup.file);
@@ -133,6 +144,53 @@ async function scheduleSegment(
   scheduleDuck(graph.musicBus, ctx, clipAt, post);
   voice.start(clipAt, clipSkip);
   track(state, voice);
+}
+
+// ---------------------------------------------------------------------------
+// Streaming the song that is already on air when you tune in.
+// Downloading and decoding a whole 5 to 10 MB song before the first sound takes seconds on a phone,
+// so that one song streams through an <audio> element (Range requests: sound in about a second).
+// Later songs keep the buffer path above: they are fetched 20 s early and start sample-accurately.
+// ---------------------------------------------------------------------------
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+let streamEl: HTMLAudioElement | null = null;
+
+/** Call inside the user's tap (iOS only lets a media element play after a gesture has started it once). */
+export function unlockStreaming(ctx: AudioContext, graph: AudioGraph): void {
+  if (streamEl) return;
+  const el = new Audio();
+  el.preload = 'auto';
+  el.src = SILENT_WAV;
+  el.play().then(() => el.pause()).catch(() => undefined);
+  ctx.createMediaElementSource(el).connect(graph.musicBus);
+  streamEl = el;
+}
+
+function streamSong(state: PlayerState, seg: SongSegment, gen: number): void {
+  const el = streamEl!;
+  const shim = { stop: () => el.pause() } as unknown as AudioBufferSourceNode;
+  const lengthS = (seg.endMs - seg.startMs) / 1000;
+  el.src = seg.mp3;
+  el.addEventListener(
+    'loadedmetadata',
+    () => {
+      if (gen !== state.generation) return;
+      const at = (correctedNow(state.offset) - seg.startMs) / 1000;
+      if (at >= lengthS) return;
+      el.currentTime = Math.max(0, at);
+      el.play()
+        .then(() => {
+          if (gen === state.generation) state.scheduledNodes.push(shim);
+        })
+        .catch((e) => console.warn('Stream play failed:', e));
+    },
+    { once: true }
+  );
+  // Songs cut at midnight stop exactly at their segment end.
+  setTimeout(() => {
+    el.pause();
+    state.scheduledNodes = state.scheduledNodes.filter((n) => n !== shim);
+  }, Math.max(0, seg.endMs - correctedNow(state.offset)));
 }
 
 /**
@@ -186,6 +244,15 @@ export async function joinBroadcast(
   state.currentSegment = state.queue[0] ?? null;
   state.onSegment?.(state.currentSegment);
 
+  // The song already on air streams right away; everything after it is scheduled ahead as usual.
+  const first = state.queue[0];
+  if (first && first.kind === 'song' && streamEl) {
+    state.queue.shift();
+    state.scheduledUntil = first.endMs;
+    streamSong(state, first as SongSegment, gen);
+    void scheduleTalkup(graph, ctx, state, first, gen).catch((e) => console.warn('Talk-up failed:', e));
+  }
+
   await tick(graph, ctx, state, gen);
   let busy = false;
   state.preloadInterval = setInterval(() => {
@@ -217,6 +284,7 @@ export function stopPlayback(state: PlayerState): void {
     }
   });
   state.scheduledNodes = [];
+  streamEl?.pause();
   if (state.preloadInterval) {
     clearInterval(state.preloadInterval);
     state.preloadInterval = null;
