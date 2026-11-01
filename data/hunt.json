@@ -56,7 +56,7 @@
         {
           "id": "marty_radio_1",
           "file": "/voice/marty_radio_1.mp3",
-          "seconds": 20
+          "seconds": 110.0
         }
       ]
     },
@@ -80,7 +80,7 @@
         {
           "id": "hold_1",
           "file": "/voice/hold_1.mp3",
-          "seconds": 20
+          "seconds": 150.0
         }
       ]
     },
@@ -92,7 +92,7 @@
         {
           "id": "rink_1",
           "file": "/voice/rink_1.mp3",
-          "seconds": 20
+          "seconds": 159.76
         }
       ]
     },
