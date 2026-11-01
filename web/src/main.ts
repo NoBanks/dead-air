@@ -30,7 +30,6 @@ const WIDTH = LOCK_THRESHOLD;
 let freq = 640;
 let on = false;
 let wasLocked = false;
-let gliding = false; // the power-on glide to 1714 is running
 
 let audioCtx: AudioContext | null = null;
 let graph: AudioGraph | null = null;
@@ -277,11 +276,7 @@ function render(): void {
 
   // If not locked, drive the text directly from context
   if (!isLive) {
-    if (on && gliding) {
-      $('title').textContent = 'tuning in...';
-      $('meta').textContent = '1714 AM';
-      $('quote').textContent = '';
-    } else if (on && faint > 0) {
+    if (on && faint > 0) {
       $('title').textContent = 'something faint...';
       $('meta').textContent = 'hold still. listen.';
       $('quote').textContent = '';
@@ -393,34 +388,6 @@ function main(): void {
     render();
   });
 
-  let autoTuning = 0;
-  const autoTune = (): void => {
-    const run = ++autoTuning;
-    gliding = true;
-    const from = freq;
-    const t0 = performance.now();
-    const ms = 2800;
-    const step = (now: number): void => {
-      if (run !== autoTuning || !on) {
-        gliding = false;
-        return;
-      }
-      const k = Math.min(1, (now - t0) / ms);
-      const ease = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-      freq = k >= 1 ? STATION : from + (STATION - from) * ease;
-      if (k >= 1) gliding = false;
-      render();
-      if (k < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  };
-  const takeOver = (): void => {
-    autoTuning++;
-    gliding = false;
-  };
-  glass.addEventListener('pointerdown', takeOver, true);
-  glass.addEventListener('keydown', takeOver, true);
-  glass.addEventListener('wheel', takeOver, { capture: true, passive: true });
 
   // Dial input
   let dragging = false;
