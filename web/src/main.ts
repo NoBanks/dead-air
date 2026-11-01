@@ -30,6 +30,7 @@ const WIDTH = LOCK_THRESHOLD;
 let freq = 640;
 let on = false;
 let wasLocked = false;
+let gliding = false; // the power-on glide to 1714 is running
 
 let audioCtx: AudioContext | null = null;
 let graph: AudioGraph | null = null;
@@ -276,7 +277,11 @@ function render(): void {
 
   // If not locked, drive the text directly from context
   if (!isLive) {
-    if (on && faint > 0) {
+    if (on && gliding) {
+      $('title').textContent = 'tuning in...';
+      $('meta').textContent = '1714 AM';
+      $('quote').textContent = '';
+    } else if (on && faint > 0) {
       $('title').textContent = 'something faint...';
       $('meta').textContent = 'hold still. listen.';
       $('quote').textContent = '';
@@ -300,6 +305,14 @@ function startAudio(): void {
     (window as any).AudioContext ||
     (window as any).webkitAudioContext;
   if (!AC) return;
+
+  // iPhone: play like a music app, so the ring/silent switch doesn't mute the station (Safari 16.4+).
+  try {
+    const session = (navigator as any).audioSession;
+    if (session) session.type = 'playback';
+  } catch {
+    // older browsers: nothing to set
+  }
 
   audioCtx = new AC() as AudioContext;
   graph = buildGraph(audioCtx);
@@ -386,20 +399,28 @@ function main(): void {
   let autoTuning = 0;
   const autoTune = (): void => {
     const run = ++autoTuning;
+    gliding = true;
     const from = freq;
     const t0 = performance.now();
     const ms = 2800;
     const step = (now: number): void => {
-      if (run !== autoTuning || !on) return;
+      if (run !== autoTuning || !on) {
+        gliding = false;
+        return;
+      }
       const k = Math.min(1, (now - t0) / ms);
       const ease = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
       freq = k >= 1 ? STATION : from + (STATION - from) * ease;
+      if (k >= 1) gliding = false;
       render();
       if (k < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   };
-  const takeOver = (): void => { autoTuning++; };
+  const takeOver = (): void => {
+    autoTuning++;
+    gliding = false;
+  };
   glass.addEventListener('pointerdown', takeOver, true);
   glass.addEventListener('keydown', takeOver, true);
   glass.addEventListener('wheel', takeOver, { capture: true, passive: true });
@@ -489,6 +510,16 @@ function main(): void {
   };
   setInterval(updateClock, 1000);
   updateClock();
+
+  // Phones suspend web audio for calls and screen locks. Coming back: wake the audio and rejoin
+  // the broadcast at the right moment instead of sitting silent.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !on || !audioCtx || !graph) return;
+    if (audioCtx.state === 'running' && playerState.scheduledNodes.length > 0) return;
+    void audioCtx.resume().then(() => {
+      if (wasLocked && audioCtx && graph) void joinBroadcast(graph, audioCtx, playerState);
+    }).catch(() => undefined);
+  });
 
   // On a slow phone the first song can take a few seconds to arrive: say so instead of looking dead.
   let waiting = false;
