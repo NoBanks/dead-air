@@ -28,6 +28,7 @@ class Tab:
         self.pending = {}
         self.frames = []
         self.recording = False
+        self.marks = {}
         threading.Thread(target=self._reader, daemon=True).start()
 
     def _reader(self):
@@ -146,7 +147,7 @@ def record_stop(tab, name):
                     "-c:v", "libx264", "-crf", "14", "-preset", "slow", mp4],
                    startupinfo=HIDDEN, creationflags=0x08000000, check=True)
     # Wall-clock span of the take, so render_audio.py can build the matching station audio.
-    json.dump({"start_ms": int(frames[0][0] * 1000), "end_ms": int(end_ts * 1000)},
+    json.dump({"start_ms": int(frames[0][0] * 1000), "end_ms": int(end_ts * 1000), **tab.marks},
               open(os.path.join(OUT, name + ".json"), "w"))
     print(name, "->", mp4, len(frames), "frames")
 
@@ -165,6 +166,7 @@ def tune_in(tab):
     power_on(tab)
     time.sleep(1.5)
     tab.sweep(1714)
+    tab.marks["lock_ms"] = int(time.time() * 1000)
     time.sleep(16)
     record_stop(tab, "tune_in")
 
@@ -175,7 +177,9 @@ def hidden(tab):
     tab.sweep(1300, fast=0.002, slow=0.002)
     record_start(tab)
     time.sleep(1.5)
+    tab.marks["sweep_ms"] = int(time.time() * 1000)
     tab.sweep(1410, fast=0.05, slow=0.12, slow_within=12)
+    tab.marks["lock_ms"] = int(time.time() * 1000)
     time.sleep(9)
     record_stop(tab, "hidden")
 
