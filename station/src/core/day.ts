@@ -301,7 +301,7 @@ export function generateDay(
     const truncated = songEnd < rawSongEnd;
 
     // 5. Talk-up metadata (does not affect timeline)
-    const talkup = assignTalkup(song, songStart, featuredMap, voiceMap, voicebank, rotation, djJustSpoke);
+    const talkup = assignTalkup(song, songStart, featuredMap, voiceMap, voicebank, rotation, djJustSpoke, segments[segments.length - 1]);
     if (talkup) rotation.aired(talkup.clipId, songStart);
     djJustSpoke = !!talkup;
 
@@ -333,7 +333,11 @@ export function generateDay(
       // Checked before any PRNG use so nothing before airAt can change.
       const due = nextInsert < inserts.length && inserts[nextInsert].airAt <= cursor ? inserts[nextInsert++] : null;
       if (due?.songId) requestedSong = library.find((t) => t.id === due.songId) ?? null;
-      const clip = due ? due.clip : rotation.pickOrOldest(pool, cursor, CLIP_COOLDOWN_MS.break);
+      // Next up is a featured song whose setup runs longer than its intro: that setup is the break
+      // (it starts over the end of this song), so a break clip here would put two Dead Johns on air.
+      const nextUp = requestedSong ?? songQueue.find((t) => !usedToday.has(t.id));
+      const setupIsBreak = !due && !!nextUp && setupRunsEarly(nextUp, featuredMap, voiceMap);
+      const clip = due ? due.clip : setupIsBreak ? null : rotation.pickOrOldest(pool, cursor, CLIP_COOLDOWN_MS.break);
       if (clip) {
         const clipEnd = cursor + Math.round(clip.seconds * 1000);
         if (clipEnd <= airEnd) {
@@ -396,6 +400,13 @@ export function generateDay(
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** A featured song whose picked setup is longer than its intro (the read starts before the song). */
+function setupRunsEarly(t: Track, featuredMap: Map<string, FeaturedEntry>, voiceMap: Map<string, VoiceClip>): boolean {
+  const f = featuredMap.get(t.id);
+  const clip = f && voiceMap.get(f.setup_clip_id);
+  return !!clip && clip.seconds * 1000 > t.talkup_seconds * 1000;
+}
+
 function assignTalkup(
   song: Track,
   songStart: number,
@@ -403,7 +414,8 @@ function assignTalkup(
   voiceMap: Map<string, VoiceClip>,
   voicebank: Voicebank,
   rotation: ReturnType<typeof makeRotation>,
-  djJustSpoke: boolean
+  djJustSpoke: boolean,
+  prevSong: Segment | undefined
 ): SongSegment["talkup"] {
   const talkupWindowMs = song.talkup_seconds * 1000;
   if (talkupWindowMs <= 0) return undefined;
@@ -414,8 +426,13 @@ function assignTalkup(
     const clip = voiceMap.get(featuredEntry.setup_clip_id);
     if (clip) {
       const startOffsetMs = talkupWindowMs - clip.seconds * 1000;
-      // Allow negative startOffset only if it's not absurdly long (> 30 s).
-      if (startOffsetMs >= -30_000) {
+      // A setup longer than the intro starts early, over the end of the song before it, the way a
+      // DJ talks out of one record into the next. Only over a song (never over Dead John himself),
+      // and only as far back as that song reaches. Otherwise the regular talk-up rules apply.
+      const earlyOk =
+        startOffsetMs >= 0 ||
+        (prevSong?.kind === "song" && startOffsetMs >= -30_000 && songStart + startOffsetMs >= prevSong.startMs);
+      if (earlyOk) {
         return {
           clipId: clip.id,
           file: clip.file,

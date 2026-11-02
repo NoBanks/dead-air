@@ -368,6 +368,38 @@ describe("P-11: Time-pinned lines", () => {
 });
 
 // ---------------------------------------------------------------------------
+// P-12: Featured setups longer than the intro start early only over a song (never two Dead Johns)
+// ---------------------------------------------------------------------------
+describe("P-12: Featured setups never talk over Dead John", () => {
+  it("a setup that starts before its song overlaps only the song before it", () => {
+    const lib = makeFakeLibrary(1100).map((t) => ({ ...t, talkup_seconds: 6 }));
+    // Every 5th song is featured with a 14 s setup: 8 s longer than its 6 s intro.
+    const featured = lib.filter((_, i) => i % 5 === 0).map((t) => ({ song_id: t.id, setup_clip_id: `feat_${t.id}` }));
+    const vb: Voicebank = {
+      clips: [
+        ...VOICEBANK.clips,
+        ...featured.map((f) => ({ id: f.setup_clip_id, kind: "setup" as const, text: "setup", seconds: 14, file: `/voice/${f.setup_clip_id}.mp3` })),
+      ],
+    };
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 300 }), (d) => {
+        const day = generateDay(d, lib, vb, featured, EPOCH_MS);
+        let early = 0;
+        day.segments.forEach((s, i) => {
+          if (s.kind !== "song" || !s.talkup || s.talkup.startOffsetMs >= 0) return;
+          early++;
+          const prev = day.segments[i - 1];
+          expect(prev?.kind, `early setup ${s.talkup.clipId} over a ${prev?.kind}`).toBe("song");
+          expect(s.startMs + s.talkup.startOffsetMs).toBeGreaterThanOrEqual(prev.startMs);
+        });
+        expect(early).toBeGreaterThan(0); // featured setups really do air early
+      }),
+      { numRuns: 25 }
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // P-8: Numbers segment starts exactly at LA midnight
 // ---------------------------------------------------------------------------
 describe("P-8: Numbers segment at LA midnight", () => {
