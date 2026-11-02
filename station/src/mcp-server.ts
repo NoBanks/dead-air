@@ -27,7 +27,7 @@ const read = <T>(p: string, fallback: T): T => {
     return fallback;
   }
 };
-const library = read<Track[]>(resolve(root, "data", "library.json"), []);
+const library = read<Track[]>(process.env.DEAD_AIR_LIBRARY || resolve(root, "data", "library.json"), []);
 const hunt = read<HuntConfig | undefined>(resolve(root, "data", "hunt.json"), undefined);
 const EPOCH = new Date("2026-10-31T00:00:00Z").getTime(); // same epoch as the station server
 

@@ -3,10 +3,14 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { resolve } from "path";
+import { existsSync } from "fs";
 import { fileURLToPath } from "url";
 
 const station = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 let client: Client;
+// A fresh clone has no data/library.json (gitignored); fall back to a small committed fixture.
+const realLibrary = resolve(station, "..", "data", "library.json");
+const libraryPath = existsSync(realLibrary) ? realLibrary : resolve(station, "tests", "fixtures", "library.sample.json");
 
 const call = async (name: string, args: Record<string, unknown> = {}) => {
   const r = (await client.callTool({ name, arguments: args })) as { content: { text: string }[] };
@@ -16,7 +20,7 @@ const call = async (name: string, args: Record<string, unknown> = {}) => {
 beforeAll(async () => {
   client = new Client({ name: "test", version: "1.0.0" });
   await client.connect(
-    new StdioClientTransport({ command: process.execPath, args: ["--import", "tsx", resolve(station, "src", "mcp-server.ts")], cwd: station })
+    new StdioClientTransport({ command: process.execPath, args: ["--import", "tsx", resolve(station, "src", "mcp-server.ts")], cwd: station, env: { ...(process.env as Record<string, string>), DEAD_AIR_LIBRARY: libraryPath } })
   );
 }, 60_000);
 

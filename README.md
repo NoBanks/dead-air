@@ -2,6 +2,8 @@
 
 **Radio's dead. Turn it up anyway.**
 
+LIVE: https://deadair.nohumannearby.com/
+
 *"I'm Dead John, coming to you LIVE, and this... is DEAD AIR."*
 
 1714 AM, a pirate station past the end of the dial. Turn an old analog dial through the static, land on 1714, and you're live with Dead John: a late night DJ who never signed off, playing 1,101 original songs by NoBanks Nearby, all night, every night. Everyone tuned in hears the same moment, like real radio.
@@ -46,7 +48,7 @@ Needs Node 22 and the encoded audio (the MP3s are not in the repo; see `tools/li
 
 ```bash
 # station API on :8787 (set LIBRARY_OUT and VOICE_OUT to your audio folders)
-cd station && npm install && npm run dev
+cd station && npm install && npm run dev   # binds ::, falls back to 0.0.0.0 without IPv6; HOST=127.0.0.1 to pin
 
 # tuner on :5173 (proxies the API)
 cd web && npm install && npx vite
