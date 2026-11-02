@@ -105,9 +105,9 @@ async function routeHandler(req: express.Request, res: express.Response) {
   });
 
   res.status(response.status);
-  for (const [key, value] of response.headers) {
+  response.headers.forEach((value, key) => {
     res.setHeader(key, value);
-  }
+  });
   const body = await response.text();
   res.send(body.length ? body : undefined);
 }
