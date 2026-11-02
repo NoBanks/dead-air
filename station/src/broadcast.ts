@@ -138,6 +138,7 @@ export class Broadcast {
     this.encoder = null;
     enc?.stdin?.end();
     enc?.kill();
+    if (this.idleTimer) clearTimeout(this.idleTimer); // a stale timer must not stop the next session
     this.idleTimer = null;
     console.log("[stream] off air (no listeners)");
   }
