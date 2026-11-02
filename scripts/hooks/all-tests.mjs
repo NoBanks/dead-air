@@ -5,9 +5,10 @@ let passed = 0;
 let failed = 0;
 const errors = [];
 
-function runTest(label, command) {
+function runTest(label, command, cwd = ".") {
   try {
     execSync(command, {
+      cwd,
       stdio: "pipe",
       windowsHide: true,
     });
@@ -20,10 +21,12 @@ function runTest(label, command) {
   }
 }
 
-runTest("tools/library tests", "npm --prefix tools/library test -- --run");
+runTest("tools/library tests", "npm --prefix tools/library test");
 runTest("station tests", "npm --prefix station test -- --run");
-runTest("tools/library tsc", "npm --prefix tools/library run tsc");
-runTest("station tsc", "npm --prefix station run tsc");
+runTest("web tests", "npm --prefix web test");
+runTest("tools/library typecheck", "npx tsc --noEmit", "tools/library");
+runTest("station typecheck", "npx tsc --noEmit", "station");
+runTest("web typecheck", "npx tsc --noEmit", "web");
 
 const summary =
   failed === 0
