@@ -64,7 +64,14 @@ export interface PlayerState {
   onSegment?: (seg: Segment | null) => void;
   /** Lets the Hunt swap one Emergency Broadcast for the finale on this device. */
   ebsUrl?: (seg: Segment) => string | null;
+  /** Follow the schedule (card, Logbook) without playing audio: the live stream plays it. */
+  trackOnly?: boolean;
+  /** How far behind the schedule the listener hears it (the stream's delay). */
+  delayMs?: number;
 }
+
+/** Schedule time the listener is hearing right now. */
+const heardNow = (state: PlayerState): number => correctedNow(state.offset) - (state.delayMs ?? 0);
 
 async function fetchSegments(at: number): Promise<Segment[]> {
   const response = await fetch(`/now?t=${Math.round(at)}`);
@@ -92,6 +99,7 @@ async function scheduleSegment(
   seg: Segment,
   gen: number
 ): Promise<void> {
+  if (state.trackOnly) return;
   const url = segmentUrl(seg, state);
   if (!url) return;
   const buffer = await fetchAndDecode(ctx, url);
@@ -198,7 +206,7 @@ function streamSong(state: PlayerState, seg: SongSegment, gen: number): void {
  * pointing at what is on air. Runs every second until stopPlayback.
  */
 async function tick(graph: AudioGraph, ctx: AudioContext, state: PlayerState, gen: number): Promise<void> {
-  const now = correctedNow(state.offset);
+  const now = heardNow(state);
   const queue = state.queue!;
   if (queue.length === 0) {
     const fresh = await fetchSegments(state.scheduledUntil!);
@@ -234,7 +242,7 @@ export async function joinBroadcast(
 
   state.offset = await estimateOffset();
   if (gen !== state.generation) return;
-  const now = correctedNow(state.offset);
+  const now = heardNow(state);
   const segments = await fetchSegments(now);
   if (gen !== state.generation) return;
 
@@ -246,7 +254,7 @@ export async function joinBroadcast(
 
   // The song already on air streams right away; everything after it is scheduled ahead as usual.
   const first = state.queue[0];
-  if (first && first.kind === 'song' && streamEl) {
+  if (first && first.kind === 'song' && streamEl && !state.trackOnly) {
     state.queue.shift();
     state.scheduledUntil = first.endMs;
     streamSong(state, first as SongSegment, gen);

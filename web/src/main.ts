@@ -9,9 +9,10 @@ import { createStaticGenerator, updateStaticGain } from './static-gen.js';
 import {
   joinBroadcast,
   stopPlayback,
-  unlockStreaming,
   type PlayerState,
 } from './player.js';
+import { unlockRadio, radioOn, radioOff, radioSounding, radioMute, STREAM_DELAY_MS } from './radio-stream.js';
+import { correctedNow } from './clock.js';
 import { updateMediaSession } from './media-session.js';
 import { createHuntTuner, type HuntTuner } from './hunt.js';
 import { record, heardAd, heardNumbers, finaleDue, markFinale, foundCount, TOWN_ADS } from './logbook.js';
@@ -37,26 +38,48 @@ let hunt: HuntTuner | null = null;
 // The Emergency Broadcast this device turned into the finale (start time), if any.
 let finaleAt: number | null = null;
 
+// The sound of 1714 comes from the live stream; the player only follows the schedule (trackOnly)
+// to drive the card, the Logbook and the finale, shifted by how far behind the stream runs.
 const playerState: PlayerState = {
   offset: 0,
   currentSegment: null,
   scheduledNodes: [],
   preloadInterval: null,
   resyncStop: null,
+  trackOnly: true,
+  delayMs: STREAM_DELAY_MS,
   // Keep the card and lock screen in step with what is on air, and feed the Logbook.
   onSegment: (seg) => {
     if (seg?.kind === 'voice' && (seg as VoiceSegment).clipId in TOWN_ADS) heardAd((seg as VoiceSegment).clipId);
     if (seg?.kind === 'numbers') heardNumbers();
+    if (seg?.kind === 'ebs' && finaleAt === null && finaleDue()) playFinale(seg);
     if (seg?.kind === 'ebs' && seg.startMs === finaleAt) markFinale();
     applyNowPlaying(seg);
     updateMediaSession(seg?.kind === 'song' ? ({ title: (seg as SongSegment).title } as any) : undefined);
   },
-  // All pages found: the next Emergency Broadcast is Marty, close and clear for the first time.
-  ebsUrl: (seg) => {
-    if (finaleAt === null && finaleDue()) finaleAt = seg.startMs;
-    return seg.startMs === finaleAt ? '/voice/finale.mp3' : null;
-  },
 };
+
+// All pages found: this device's next Emergency Broadcast is Marty, close and clear for the first time.
+// The stream goes quiet under it for the length of the EBS and comes back with the next song.
+function playFinale(seg: Segment): void {
+  if (!audioCtx || !graph) return;
+  finaleAt = seg.startMs;
+  radioMute(true);
+  const ctx = audioCtx;
+  const bus = graph.voiceBus;
+  const at = () => correctedNow(playerState.offset) - STREAM_DELAY_MS;
+  void fetch('/voice/finale.mp3')
+    .then((r) => r.arrayBuffer())
+    .then((b) => ctx.decodeAudioData(b))
+    .then((buf) => {
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(bus);
+      src.start(0, Math.max(0, (at() - seg.startMs) / 1000));
+    })
+    .catch((e) => console.warn('Finale failed:', e));
+  setTimeout(() => radioMute(false), Math.max(0, seg.endMs - at()));
+}
 
 // -------------------------------------------------------------------
 // Expose real state for automated testing / devtools
@@ -102,13 +125,8 @@ const playerState: PlayerState = {
     return foundCount();
   },
   get playing(): boolean {
-    // A source is "playing" when at least one node is scheduled and the
-    // AudioContext is running.
-    return (
-      !!audioCtx &&
-      audioCtx.state === 'running' &&
-      playerState.scheduledNodes.length > 0
-    );
+    // Station audio is actually coming out of the stream.
+    return radioSounding();
   },
 };
 
@@ -215,6 +233,8 @@ async function onLock(): Promise<void> {
   lockPending = true;
   try {
     if (!audioCtx || !graph) return;
+    // Start the stream first (still inside the user's touch on most phones), then follow the schedule.
+    void radioOn();
     if (audioCtx.state === 'suspended') {
       await audioCtx.resume();
     }
@@ -228,6 +248,7 @@ async function onLock(): Promise<void> {
 }
 
 function onUnlock(): void {
+  radioOff();
   stopPlayback(playerState);
   // Show static/seeking UI
   applyNowPlaying(null);
@@ -369,7 +390,7 @@ function main(): void {
     if (!on) {
       // First turn-on: create AudioContext (requires user gesture)
       startAudio();
-      if (audioCtx && graph) unlockStreaming(audioCtx, graph);
+      unlockRadio();
     }
     on = !on;
     powerBtn.textContent = on ? 'TURN IT OFF' : 'TURN ON THE RADIO';
@@ -377,6 +398,7 @@ function main(): void {
 
     if (!on) {
       // Radio off: stop everything
+      radioOff();
       stopPlayback(playerState);
       wasLocked = false;
       if (audioCtx) {
@@ -475,20 +497,20 @@ function main(): void {
   setInterval(updateClock, 1000);
   updateClock();
 
-  // Phones suspend web audio for calls and screen locks. Coming back: wake the audio and rejoin
-  // the broadcast at the right moment instead of sitting silent.
+  // The stream keeps playing in the background. Coming back to the page: wake the dial's audio
+  // (static, hidden stations), restart the stream if the phone dropped it, and catch the card up.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !on || !audioCtx || !graph) return;
-    if (audioCtx.state === 'running' && playerState.scheduledNodes.length > 0) return;
-    void audioCtx.resume().then(() => {
-      if (wasLocked && audioCtx && graph) void joinBroadcast(graph, audioCtx, playerState);
-    }).catch(() => undefined);
+    void audioCtx.resume().catch(() => undefined);
+    if (!wasLocked) return;
+    if (!radioSounding()) void radioOn();
+    void joinBroadcast(graph, audioCtx, playerState);
   });
 
-  // On a slow phone the first song can take a few seconds to arrive: say so instead of looking dead.
+  // The stream takes a moment to start: say so instead of looking dead.
   let waiting = false;
   setInterval(() => {
-    const sounding = !!audioCtx && audioCtx.state === 'running' && playerState.scheduledNodes.length > 0;
+    const sounding = radioSounding();
     if (wasLocked && !sounding) {
       waiting = true;
       $('meta').textContent = 'tuning in...';

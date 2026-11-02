@@ -18,6 +18,8 @@ import {
 } from "./core/request.js";
 import { JsonFileStore } from "./request-store.js";
 import { schedule } from "./core/schedule.js";
+import { Broadcast } from "./broadcast.js";
+import { spawnSync } from "child_process";
 import { stationDayStart } from "./core/tzoffsets.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -112,6 +114,47 @@ async function routeHandler(req: express.Request, res: express.Response) {
 
 app.get("/now", routeHandler);
 app.get("/signal", routeHandler);
+
+// --- The station as a real radio stream (plays in the background and on the lock screen) ---------
+const ffmpeg = process.env.FFMPEG || "C:\\Users\\machi\\Downloads\\ffmpeg-8.0.1-essentials_build_CLEAN\\bin\\ffmpeg.exe";
+let streamInserts = toInserts([]);
+const refreshInserts = async () => {
+  streamInserts = toInserts(await requestStore.list());
+};
+void refreshInserts();
+setInterval(() => void refreshInserts(), 10_000);
+const clipLengths = new Map<string, number>();
+const broadcast = new Broadcast({
+  ffmpeg,
+  alwaysOn: process.env.STREAM_ALWAYS_ON === "1",
+  segments: (from, to) => schedule(library, { ...voicebank, inserts: streamInserts }, featured, epochMs, from, to),
+  localFile: (url) => {
+    const name = url.slice(url.lastIndexOf("/") + 1);
+    if (url.startsWith("/audio/")) return resolve(libraryOut, name);
+    if (url.startsWith("/requests/")) return resolve(requestsDir, name);
+    return resolve(voiceOut, name);
+  },
+  clipSeconds: (file) => {
+    if (!clipLengths.has(file)) {
+      const r = spawnSync(ffmpeg.replace(/ffmpeg(\.exe)?$/i, "ffprobe$1"),
+        ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file], { windowsHide: true });
+      clipLengths.set(file, Number(String(r.stdout).trim()) || 0);
+    }
+    return clipLengths.get(file)!;
+  },
+});
+app.get("/stream", (_req, res) => broadcast.attach(res));
+
+// Safety net: never let this process eat the laptop. Over the limit, log and exit; PM2 restarts it.
+const RSS_LIMIT_MB = Number(process.env.RSS_LIMIT_MB) || 1500;
+setInterval(() => {
+  const rss = process.memoryUsage().rss / 1e6;
+  if (process.env.STREAM_DEBUG) console.log("[mem]", Math.round(rss), "MB", JSON.stringify(broadcast.stats()));
+  if (rss > RSS_LIMIT_MB) {
+    console.error(`[mem] ${Math.round(rss)} MB over the ${RSS_LIMIT_MB} MB limit, restarting`, JSON.stringify(broadcast.stats()));
+    process.exit(1);
+  }
+}, 5000).unref();
 
 // Song list for the request form (titles are public anyway).
 app.get("/songs", (_req, res) => {
