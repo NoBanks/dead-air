@@ -55,7 +55,14 @@ const playerState: PlayerState = {
     if (seg?.kind === 'ebs' && finaleAt === null && finaleDue()) playFinale(seg);
     if (seg?.kind === 'ebs' && seg.startMs === finaleAt) markFinale();
     applyNowPlaying(seg);
-    updateMediaSession(seg?.kind === 'song' ? ({ title: (seg as SongSegment).title } as any) : undefined);
+    // Lock screen: the song and NoBanks Nearby, or Dead John / the numbers / the EBS between songs.
+    if (seg) {
+      const label = segmentLabel(seg);
+      updateMediaSession({
+        title: label.title || 'DEAD AIR',
+        artist: seg.kind === 'song' ? 'NoBanks Nearby' : label.meta || '1714 AM',
+      });
+    }
   },
 };
 

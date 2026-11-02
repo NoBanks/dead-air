@@ -1,30 +1,24 @@
-import type { Track } from './types.js';
-
 /**
- * Update Media Session API metadata
+ * What the phone's lock screen and media controls show while 1714 plays in the background.
  */
-export function updateMediaSession(track?: Track): void {
+export function updateMediaSession(now?: { title: string; artist: string }): void {
   if (!('mediaSession' in navigator)) {
     return; // Media Session not supported
   }
 
-  if (!track) {
+  if (!now) {
     navigator.mediaSession.metadata = null;
     return;
   }
 
-  // Create metadata for the media session
   try {
     navigator.mediaSession.metadata = new (window as any).MediaMetadata({
-      title: track.title,
-      artist: 'NoBanks Nearby',
+      title: now.title,
+      artist: now.artist,
+      album: 'DEAD AIR · 1714 AM',
       artwork: [
-        // Add artwork if available
-        // {
-        //   src: '/artwork.png',
-        //   sizes: '512x512',
-        //   type: 'image/png',
-        // },
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
       ],
     });
   } catch (e) {

@@ -1,0 +1,15 @@
+{
+  "name": "DEAD AIR | 1714 AM",
+  "short_name": "DEAD AIR",
+  "description": "A pirate radio station past the end of the dial. Radio's dead. Turn it up anyway.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050607",
+  "theme_color": "#050607",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
