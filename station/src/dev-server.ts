@@ -314,11 +314,21 @@ if (staticDir) {
 
 const port = Number(process.env.PORT) || 8787;
 // HOST=127.0.0.1 in production: only the Cloudflare tunnel on this machine can reach it.
-const host = process.env.HOST || "::";
-const server = app.listen(port, host, () => {
+// Default "::" (dual stack); falls back to 0.0.0.0 on hosts without IPv6 (EAFNOSUPPORT).
+let host = process.env.HOST || "::";
+const onListening = () => {
   console.log(`Dev server listening on http://${host}:${port}`);
   console.log(`Audio directory: ${libraryOut}`);
   console.log(`Voice directory: ${voiceOut}`);
+};
+const server = app.listen(port, host, onListening);
+server.once("error", (err: NodeJS.ErrnoException) => {
+  if (!process.env.HOST && (err.code === "EAFNOSUPPORT" || err.code === "EADDRNOTAVAIL")) {
+    host = "0.0.0.0";
+    server.listen(port, host);
+  } else {
+    throw err;
+  }
 });
 
 // Graceful shutdown

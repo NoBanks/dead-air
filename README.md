@@ -46,7 +46,7 @@ Needs Node 22 and the encoded audio (the MP3s are not in the repo; see `tools/li
 
 ```bash
 # station API on :8787 (set LIBRARY_OUT and VOICE_OUT to your audio folders)
-cd station && npm install && npm run dev
+cd station && npm install && npm run dev   # binds ::, falls back to 0.0.0.0 without IPv6; HOST=127.0.0.1 to pin
 
 # tuner on :5173 (proxies the API)
 cd web && npm install && npx vite
