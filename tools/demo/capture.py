@@ -11,8 +11,13 @@ import base64, json, os, subprocess, sys, threading, time, urllib.request
 import websocket
 
 OUT = os.path.join(os.path.expanduser("~"), ".deadair", "demo")
+# --4k: same scenes at 3840x2160 (page rendered at 4x pixel density) so the edit can punch in and pan.
+K4 = "--4k" in sys.argv
+SCALE = 4 if K4 else 2
+W_OUT, H_OUT = (3840, 2160) if K4 else (1920, 1080)
+SUFFIX = "_4k" if K4 else ""
 FF = r"C:\Users\machi\Downloads\ffmpeg-8.0.1-essentials_build_CLEAN\bin\ffmpeg.exe"
-SITE = "http://localhost:17362/"
+SITE = "https://deadair.nohumannearby.com/"
 HIDDEN = subprocess.STARTUPINFO()
 HIDDEN.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 HIDDEN.wShowWindow = 0
@@ -20,8 +25,17 @@ HIDDEN.wShowWindow = 0
 
 class Tab:
     def __init__(self):
-        req = urllib.request.Request("http://127.0.0.1:9333/json/new?about:blank", method="PUT")
-        self.info = json.load(urllib.request.urlopen(req))
+        # A throwaway browser context: its own storage, so scenes that fake Logbook progress
+        # never touch Ryan's real progress on the live site.
+        ver = json.load(urllib.request.urlopen("http://127.0.0.1:9333/json/version"))
+        self.browser = websocket.create_connection(ver["webSocketDebuggerUrl"], suppress_origin=True, timeout=30)
+        self.browser.send(json.dumps({"id": 1, "method": "Target.createBrowserContext", "params": {"disposeOnDetach": False}}))
+        self.context = json.loads(self.browser.recv())["result"]["browserContextId"]
+        self.browser.send(json.dumps({"id": 2, "method": "Target.createTarget",
+                                      "params": {"url": "about:blank", "browserContextId": self.context}}))
+        target = json.loads(self.browser.recv())["result"]["targetId"]
+        time.sleep(1)
+        self.info = [x for x in json.load(urllib.request.urlopen("http://127.0.0.1:9333/json")) if x["id"] == target][0]
         self.ws = websocket.create_connection(self.info["webSocketDebuggerUrl"], suppress_origin=True, timeout=60)
         self.n = 0
         self.lock = threading.Lock()
@@ -101,13 +115,15 @@ class Tab:
 
     def close(self):
         urllib.request.urlopen("http://127.0.0.1:9333/json/close/" + self.info["id"])
+        self.browser.send(json.dumps({"id": 3, "method": "Target.disposeBrowserContext", "params": {"browserContextId": self.context}}))
+        self.browser.close()
 
 
 def open_site(tab, inject=None):
     tab.send("Page.enable")
     tab.send("Network.enable")
     tab.send("Network.setCacheDisabled", {"cacheDisabled": True})
-    tab.send("Emulation.setDeviceMetricsOverride", {"width": 960, "height": 540, "deviceScaleFactor": 2, "mobile": False})
+    tab.send("Emulation.setDeviceMetricsOverride", {"width": 960, "height": 540, "deviceScaleFactor": SCALE, "mobile": False})
     tab.send("Emulation.setScrollbarsHidden", {"hidden": True})
     if inject:
         tab.send("Page.addScriptToEvaluateOnNewDocument", {"source": inject})
@@ -119,7 +135,7 @@ def open_site(tab, inject=None):
 def record_start(tab):
     tab.frames = []
     tab.recording = True
-    tab.send("Page.startScreencast", {"format": "jpeg", "quality": 92, "maxWidth": 1920, "maxHeight": 1080, "everyNthFrame": 1})
+    tab.send("Page.startScreencast", {"format": "jpeg", "quality": 92, "maxWidth": W_OUT, "maxHeight": H_OUT, "everyNthFrame": 1})
 
 
 def record_stop(tab, name):
@@ -141,9 +157,10 @@ def record_stop(tab, name):
     lines.append(f"file '{os.path.join(d, f'{len(frames)-1:06d}.jpg')}'\n")
     lst = os.path.join(d, "list.txt")
     open(lst, "w").write("".join(lines))
+    name = name + SUFFIX
     mp4 = os.path.join(OUT, name + ".mp4")
     subprocess.run([FF, "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst,
-                    "-vf", "fps=24,scale=1920:1080:flags=lanczos,format=yuv420p", "-r", "24",
+                    "-vf", f"fps=24,scale={W_OUT}:{H_OUT}:flags=lanczos,format=yuv420p", "-r", "24",
                     "-c:v", "libx264", "-crf", "14", "-preset", "slow", mp4],
                    startupinfo=HIDDEN, creationflags=0x08000000, check=True)
     # Wall-clock span of the take, so render_audio.py can build the matching station audio.
@@ -264,7 +281,7 @@ def kiro(tab):
     """The Kiro side, on the public repo: specs, a spec's requirements, hooks, the MCP server."""
     base = "https://github.com/NoBanks/dead-air"
     tab.send("Page.enable")
-    tab.send("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 720, "deviceScaleFactor": 1.5, "mobile": False})
+    tab.send("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 720, "deviceScaleFactor": SCALE * 0.75, "mobile": False})
     tab.send("Emulation.setScrollbarsHidden", {"hidden": True})
     tab.send("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark"}]})
     tab.send("Page.navigate", {"url": base + "/tree/main/.kiro/specs"})
@@ -283,7 +300,7 @@ def kiro(tab):
 def tests(tab):
     """Replay of the real vitest runs (tests_page.py builds tests.html from saved output)."""
     tab.send("Page.enable")
-    tab.send("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 720, "deviceScaleFactor": 1.5, "mobile": False})
+    tab.send("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 720, "deviceScaleFactor": SCALE * 0.75, "mobile": False})
     tab.send("Emulation.setScrollbarsHidden", {"hidden": True})
     tab.send("Page.navigate", {"url": "about:blank"})
     time.sleep(1)
