@@ -2,6 +2,8 @@
 
 **Radio's dead. Turn it up anyway.**
 
+LIVE: https://deadair.nohumannearby.com/
+
 *"I'm Dead John, coming to you LIVE, and this... is DEAD AIR."*
 
 1714 AM, a pirate station past the end of the dial. Turn an old analog dial through the static, land on 1714, and you're live with Dead John: a late night DJ who never signed off, playing 1,101 original songs by NoBanks Nearby, all night, every night. Everyone tuned in hears the same moment, like real radio.
