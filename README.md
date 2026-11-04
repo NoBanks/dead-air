@@ -19,7 +19,7 @@ Built for **Kiroween 2026** (Resurrection). Built with **[Kiro](https://kiro.dev
 
 | Kiro feature | Where | What it did |
 |---|---|---|
-| **Specs** (requirements in EARS, design with correctness properties, tasks) | [`.kiro/specs`](.kiro/specs) | Six specs: `station-library`, `talkup-bugfix`, `broadcast-clock`, `tuner-player`, `the-hunt`, `request-line` |
+| **Specs** (requirements in EARS, design with correctness properties, tasks) | [`.kiro/specs`](.kiro/specs) | Seven specs: `station-library`, `talkup-bugfix`, `broadcast-clock`, `tuner-player`, `the-hunt`, `request-line`, `live-stream` |
 | **Steering** | [`.kiro/steering`](.kiro/steering) | `dead-john.md` (the DJ's bible), `audio.md` (loudness and ducking, scoped to audio code), `product.md`, `style.md`, `tech.md`, `structure.md` |
 | **Hooks** (command hooks, zero credits) | [`.kiro/hooks/dead-air.json`](.kiro/hooks/dead-air.json) | Tests on save, a PreToolUse guard that blocks audio files from the repo, a Dead John script lint, and "a task isn't done until all tests pass" |
 | **MCP** | [`.kiro/settings/mcp.json`](.kiro/settings/mcp.json), [`station/src/mcp-server.ts`](station/src/mcp-server.ts) | `dead-air-station`: whats_on, find_track, talkup_window, day_summary, library_stats, signal_check |
@@ -42,19 +42,31 @@ Property-based tests (fast-check) hold it together: strict tiling for any day in
 
 ## Run it locally
 
-Needs Node 22 and the encoded audio (the MP3s are not in the repo; see `tools/library`).
+Needs Node 22. The song and voice MP3s are not in the repo (see `tools/library` to build them), so a fresh clone runs and passes its tests but has no music to play. To hear the station, use the live site.
+
+Install and test (works on a fresh clone, no audio needed):
 
 ```bash
-# station API on :8787 (set LIBRARY_OUT and VOICE_OUT to your audio folders)
+cd station && npm install && npx vitest run
+cd web && npm install && npx vitest run
+cd tools/library && npm install && npx vitest run
+```
+
+Run it (needs your own encoded audio). The station server reads its settings from environment variables, listed in [`.env.example`](.env.example). The defaults are Windows paths from the author's machine, so set these yourself on Linux or macOS. The server does not read a `.env` file, so export them in your shell:
+
+```bash
+export LIBRARY_OUT=/path/to/library_mp3   # song MP3s
+export VOICE_OUT=/path/to/voice_mp3       # Dead John clips
+export FFMPEG=/path/to/ffmpeg             # used to mix /stream
+
+# station API on :8787
 cd station && npm install && npm run dev
 
-# tuner on :5173 (proxies the API)
+# tuner on :5173 (proxies the API), in a second terminal
 cd web && npm install && npx vite
-
-# tests
-cd station && npx vitest run
-cd web && npx vitest run
 ```
+
+Without `data/library.json` (it is gitignored and built by `tools/library`) the server starts but logs "Could not load library.json" and has no songs.
 
 Production: `cd web && npx vite build`, then run the station with `STATIC_DIR=../web/dist PORT=<port>`.
 
