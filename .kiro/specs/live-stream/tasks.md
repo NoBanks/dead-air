@@ -28,29 +28,36 @@
 
 ---
 
-## Open: bugs found in review
+## Bugs found in review
 
-- [ ] **`stop()` does not cancel the idle timer before nulling it** (broadcast.ts ~line 106).
+- [x] **`stop()` does not cancel the idle timer before nulling it** (broadcast.ts ~line 106).
   A pending timer can fire after a restart and tear down the new session.
   Fix: add `if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }` at
   the top of `stop()`.
+  Already fixed, verified at station/src/broadcast.ts:141.
 
-- [ ] **`this.encoder` nulled after `enc.kill()`, not before** (broadcast.ts ~line 103-106).
+- [x] **`this.encoder` nulled after `enc.kill()`, not before** (broadcast.ts ~line 103-106).
   A late `exit` event from the killed process can match `this.encoder === enc` after a new
   encoder has started. Move `this.encoder = null` to before `enc?.stdin?.end()`.
+  Already fixed, verified at station/src/broadcast.ts:138.
 
-- [ ] **`radioOff()` does not cancel the pending retry timer** (radio-stream.ts, `radioOff`).
+- [x] **`radioOff()` does not cancel the pending retry timer** (radio-stream.ts, `radioOff`).
   A stall event just before `radioOff()` arms a 2-second timer. That timer calls `radioOn()`
   without re-checking `wanted`, turning the radio back on after the user stopped it.
   Fix: add `if (retry) { clearTimeout(retry); retry = null; }` at the top of `radioOff()`.
+  Fixed in this pass (web/src/radio-stream.ts:45). The timer already re-checked `wanted`, so it
+  could not turn the radio back on by itself, but an off then on inside 2 s would still get a
+  stray reload. Now the timer is cancelled.
 
 ---
 
-## Open: tests
+## Tests
 
-- [ ] Unit test: `tick()` writes silence on PCM underrun and does not stall the encoder
-- [ ] Unit test: `attach()` sends burst to new client and adds it to `clients`
-- [ ] Unit test: `broadcast()` drops client when `writableLength > MAX_CLIENT_BACKLOG`
-- [ ] Unit test: `stop()` cancels idle timer (regression for bug above)
-- [ ] Unit test: `radioOff()` cancels retry timer (regression for bug above)
-- [ ] Integration smoke test: `GET /stream` returns 200 with `audio/mpeg` and non-zero body
+- [x] Unit test: `tick()` writes silence on PCM underrun and does not stall the encoder (station/tests/broadcast.test.ts)
+- [x] Unit test: `attach()` sends burst to new client and adds it to `clients` (station/tests/broadcast.test.ts)
+- [x] Unit test: `broadcast()` drops client when `writableLength > MAX_CLIENT_BACKLOG` (station/tests/broadcast.test.ts)
+- [x] Unit test: `stop()` cancels idle timer (regression for bug above) (station/tests/broadcast.test.ts)
+- [x] Unit test: `radioOff()` cancels retry timer (regression for bug above) (web/tests/radio-stream.test.ts)
+- [x] Integration smoke test: `GET /stream` returns 200 with `audio/mpeg` and non-zero body
+  (station/tests/broadcast.test.ts). Runs in-process on an ephemeral port with a stubbed
+  encoder, so it needs no ffmpeg and no audio files. No skipIf needed.

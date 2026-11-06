@@ -42,6 +42,10 @@ export function radioOn(): Promise<void> {
 
 export function radioOff(): void {
   wanted = false;
+  if (retry) {
+    clearTimeout(retry);
+    retry = null;
+  }
   if (!el) return;
   el.pause();
   el.removeAttribute('src');
