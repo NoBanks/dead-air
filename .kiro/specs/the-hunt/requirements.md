@@ -152,6 +152,10 @@ hidden station; detected client-side from the now-playing feed).
 
 Progress is stored only in localStorage. No server state.
 
+A found page SHALL show its number, title and flavor text, as text only (no art).
+A locked page SHALL show a smudge and a hint line.
+Changed Nov 6: found pages are text-only and locked pages use a smudge instead of static, by design.
+
 ---
 
 ## REQ-12: Finale (web, later)
@@ -161,6 +165,26 @@ IT SHALL play `/voice/finale.mp3` during the next EBS segment.
 
 ---
 
-## REQ-13: Share card (web, later)
+Changed Nov 6: REQ-11 now says what the Logbook shows (text-only found pages, smudge and hint for locked pages). REQ-14 added for the tuner behavior that shipped.
 
-A shareable PNG image SHALL be generated without revealing any hidden frequency.
+---
+
+## REQ-13: Share card (web)
+
+WHEN the listener presses SHARE LOGBOOK,
+THE client SHALL draw a PNG on a canvas in the browser showing: the station name DEAD AIR, 1714 AM, "N of 8 pages found", and eight marks, one per page.
+- Each mark SHALL show only its number and whether it is found. The card SHALL NOT show any page title, found or locked: it says how many, never which or where.
+- The card SHALL NOT show or encode any hidden frequency, flavor text, hint, or how to find a page. The only frequency on it is 1714. The footer SHALL read "Everyone made it out." once the finale has played, else "Tune in to 1714. Something is out there."
+- The card SHALL use the tuner look (colors and fonts from `web/src/style.css`).
+
+IF `navigator.share` accepts files, THE client SHALL share the PNG with it. OTHERWISE it SHALL download the PNG.
+THE card SHALL make no network calls and need no new dependencies.
+
+---
+
+## REQ-14: Hidden-station playback (web)
+
+WHEN the dial settles on a frequency, THE client SHALL ask `/signal` once for that frequency.
+WHEN a hidden clip ends while the dial is still on that frequency, THE client SHALL ask again.
+THE client SHALL NOT poll on a fixed timer.
+WHILE a hidden station is received, static SHALL stay at or above 40% of full level, so the station sounds like a weak, far-off signal even at full strength.

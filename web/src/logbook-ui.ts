@@ -10,8 +10,7 @@ import {
   onLogbookChange,
   type Page,
 } from './logbook.js';
-
-const SITE = 'deadair.nohumannearby.com';
+import { buildShareCard, type ShareCardData } from './share-card.js';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] => {
   const e = document.createElement(tag);
@@ -50,45 +49,73 @@ function pageCard(p: Page, n: number): HTMLElement {
   return card;
 }
 
-/** A spoiler-free PNG: how many pages, never where. */
-async function shareCard(): Promise<void> {
+/** A spoiler-free PNG: how many pages, never where. Content comes from buildShareCard. */
+function drawShareCard(card: ShareCardData): HTMLCanvasElement {
+  const W = 1200, H = 630;
   const c = document.createElement('canvas');
-  c.width = 1200;
-  c.height = 630;
+  c.width = W;
+  c.height = H;
   const g = c.getContext('2d')!;
-  await document.fonts.load('40px "Special Elite"').catch(() => undefined);
-  g.fillStyle = '#e8dcc0';
-  g.fillRect(0, 0, 1200, 630);
-  for (let y = 120; y < 630; y += 34) {
-    g.strokeStyle = 'rgba(70,90,140,0.18)';
-    g.beginPath(); g.moveTo(60, y); g.lineTo(1140, y); g.stroke();
-  }
-  g.fillStyle = '#2a1d10';
-  g.font = '64px "Special Elite", monospace';
-  g.fillText('DEAD AIR LOGBOOK', 80, 110);
-  g.font = '40px "Special Elite", monospace';
-  const n = foundCount();
-  g.fillText(`${n} of ${PAGES.length} pages found`, 80, 200);
-  PAGES.forEach((p, i) => {
-    const x = 80 + (i % 4) * 260, y = 250 + Math.floor(i / 4) * 150;
-    g.strokeStyle = '#2a1d10';
+  const mono = '"Special Elite", monospace';
+  const sans = '"Oswald", system-ui, sans-serif';
+  const AMBER = '#ff7a1a', DIM = '#6b3a12', INK = '#e9e3d4', MUTED = '#7f7a70';
+
+  g.fillStyle = '#050607';
+  g.fillRect(0, 0, W, H);
+  g.fillStyle = '#0f1112';
+  g.fillRect(30, 30, W - 60, H - 60);
+  g.strokeStyle = '#23272a';
+  g.lineWidth = 2;
+  g.strokeRect(30, 30, W - 60, H - 60);
+
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = AMBER;
+  g.font = `600 88px ${sans}`;
+  g.fillText(card.station, 80, 140);
+  g.font = `44px ${mono}`;
+  g.fillText(card.band, 80, 195);
+  g.fillStyle = INK;
+  g.font = `38px ${mono}`;
+  g.textAlign = 'right';
+  g.fillText(card.summary, W - 80, 140);
+  g.textAlign = 'left';
+
+  card.marks.forEach((m, i) => {
+    const x = 80 + (i % 4) * 265, y = 235 + Math.floor(i / 4) * 150;
     g.lineWidth = 3;
-    g.strokeRect(x, y, 220, 120);
-    if (isFound(p.id)) {
-      g.fillStyle = '#ff7a1a';
-      g.fillRect(x + 6, y + 6, 208, 108);
+    g.strokeStyle = m.found ? AMBER : DIM;
+    g.strokeRect(x, y, 235, 125);
+    g.fillStyle = m.found ? 'rgba(255,122,26,0.12)' : 'rgba(0,0,0,0)';
+    g.fillRect(x, y, 235, 125);
+    g.fillStyle = m.found ? AMBER : MUTED;
+    g.font = `20px ${mono}`;
+    g.fillText(String(m.n).padStart(2, '0'), x + 14, y + 30);
+    if (m.found) {
+      g.fillStyle = INK;
+      g.font = `26px ${mono}`;
+      g.fillText('LOGGED', x + 14, y + 80);
     }
   });
-  g.fillStyle = '#2a1d10';
-  g.font = '32px "Special Elite", monospace';
-  g.fillText(finaleDone() ? 'Everyone made it out.' : 'Tune in to 1714. Something is out there.', 80, 590);
-  g.textAlign = 'right';
-  g.fillText(SITE, 1120, 590);
 
+  g.fillStyle = MUTED;
+  g.font = `26px ${mono}`;
+  g.fillText(card.footer, 80, 570);
+  g.textAlign = 'right';
+  g.fillText(card.site, W - 80, 570);
+  return c;
+}
+
+async function shareCard(): Promise<void> {
+  const card = buildShareCard(PAGES.filter((p) => isFound(p.id)).map((p) => p.id), finaleDone());
+  await Promise.all([
+    document.fonts.load('40px "Special Elite"'),
+    document.fonts.load('600 40px "Oswald"'),
+  ]).catch(() => undefined);
+  const c = drawShareCard(card);
   const blob: Blob | null = await new Promise((r) => c.toBlob(r, 'image/png'));
   if (!blob) return;
   const file = new File([blob], 'dead-air-logbook.png', { type: 'image/png' });
-  const text = `I found ${n} of ${PAGES.length} pages in the DEAD AIR logbook. https://${SITE}`;
+  const text = card.shareText;
   try {
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({ files: [file], text });
@@ -139,7 +166,7 @@ export function mountLogbook(): void {
     const grid = el('div', 'lb-grid');
     PAGES.forEach((p, i) => grid.append(pageCard(p, i + 1)));
     dlg.append(grid);
-    const share = el('button', 'btn lb-share', 'SHARE MY LOGBOOK');
+    const share = el('button', 'btn lb-share', 'SHARE LOGBOOK');
     share.type = 'button';
     share.onclick = () => void shareCard();
     dlg.append(share);

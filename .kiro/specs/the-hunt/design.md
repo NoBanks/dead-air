@@ -193,3 +193,26 @@ Headers: `Cache-Control: no-store`, `Content-Type: application/json` (hit only).
 | `station/src/core/types.ts` | No change |
 | `station/src/dev-server.ts` | Load hunt.json; pass to handler; replace stub route |
 | `station/tests/hunt.property.test.ts` | Create |
+
+---
+
+## Web client (shipped)
+
+Changed Nov 6: this section was added so the design describes what shipped.
+
+### Tuner playback (REQ-14)
+
+- `web/src/hunt.ts` asks `/signal` 220 ms after the dial settles, and again at `remaining_ms + 50` (min 250 ms) when the clip ends. No 5 s poll: two requests per clip is cheaper and the server is stateless anyway.
+- Static gain and the signal meter use `1 - max(lock, strength * 0.6)`. A hidden station at full strength still leaves 40% static, so it always sounds far off.
+
+### Logbook UI (REQ-11)
+
+- Found page: number, title, flavor text. Text only.
+- Locked page: number, a blurred smudge, and the hint line. The title stays hidden.
+
+### Share card (REQ-13)
+
+- `web/src/share-card.ts`: `buildShareCard(foundIds)` returns the card data: `station`, `band`, `summary`, eight `marks` (`{ n, found }`), footer, site and share text. Pure, no canvas.
+- Marks carry no titles at all (Claude review Nov 6: a found title still tells a friend which page exists, so the card keeps the original rule: how many, never which). No title, hint, flavor text or frequency is read, so none can leak. The footer is the finale line once the finale has played. The only number of three or more digits is 1714.
+- `web/src/logbook-ui.ts`: `drawShareCard(card)` paints a 1200x630 canvas with the tuner palette (`--bg`, `--panel`, `--edge`, `--amber`, `--amber-dim`, `--ink`, `--muted`) and the Oswald and Special Elite fonts. `shareCard()` then calls `navigator.share({ files, text })` if `canShare` allows it, else downloads `dead-air-logbook.png`. No network calls.
+- Tests: `web/tests/share-card.test.ts`, including a property test over any set of found pages that checks no number run of 3+ digits except 1714, no page title, no flavor text and no hint.
