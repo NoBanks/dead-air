@@ -134,20 +134,32 @@ tasks depend on earlier ones. Each task references the requirements it satisfies
   `tools/library/README.md`.
   *(REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-8, REQ-9, REQ-11)*
 
-- [ ] **23.** Full run against the real CSV (~1,100 tracks). Verify `library.json`
+- [x] **23.** Full run against the real CSV (~1,100 tracks). Verify `library.json`
   entry count, spot-check 5 entries for correct field values, confirm `--force`
   triggers a full re-encode.
   *(REQ-1 through REQ-11)*
+  Checked on Nov 6 without re-running the encode: `data/library.json` has 1,101
+  entries (matches the expected count after `data/exclude.txt`), 1,101 unique
+  slugs and ids, none of the excluded titles present, sorted by title. Every entry
+  has id, slug, title, seconds > 0, talkup_seconds in [0, 30], lufs and mp3.
+  `lufs` is the measured source loudness (`analyze.ts:129`), so values above
+  -14 are expected. `--force` skips the cache check (`index.ts:158-159`); that is
+  read from the code, not re-run.
 
 ---
 
 ## Phase 7: Housekeeping
 
-- [ ] **24.** Confirm `/data/library.json`, `$LIBRARY_OUT/*.mp3`, and all WAV source
+- [x] **24.** Confirm `/data/library.json`, `$LIBRARY_OUT/*.mp3`, and all WAV source
   paths are excluded from git. Run `git status` and verify no audio or large
   data files are staged.
   *(REQ-5, REQ-8)*
+  Checked on Nov 6: `git ls-files` lists no .mp3, .wav or .flac. `.gitignore`
+  covers `*.mp3`, `*.wav`, `*.flac`, `data/library.json` and
+  `data/.library-cache.json`. `git status` shows nothing staged.
 
-- [ ] **25.** Update the root `README.md` to mention `tools/library` and the env
+- [x] **25.** Update the root `README.md` to mention `tools/library` and the env
   vars needed to run it.
   *(no requirement, documentation only)*
+  Added a "Rebuild the library" section to `README.md` (`FFMPEG`, `CSV_PATH`,
+  `LIBRARY_OUT`).

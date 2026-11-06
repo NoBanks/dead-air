@@ -58,6 +58,21 @@ cd web && npx vitest run
 
 Production: `cd web && npx vite build`, then run the station with `STATIC_DIR=../web/dist PORT=<port>`.
 
+## Rebuild the library
+
+The songs are encoded by `tools/library`. It reads your master CSV, measures each WAV, and writes 256 kbps MP3s plus `data/library.json`. The WAVs and MP3s never go in git. Three env vars, kept outside the repo:
+
+- `FFMPEG`: path to the ffmpeg binary.
+- `CSV_PATH`: the master track list (needs `title` and `file` columns).
+- `LIBRARY_OUT`: the folder the MP3s are written to.
+
+```bash
+cd tools/library && npm install && npm run build
+npm start                  # add --force to re-encode, --dry-run to just look
+```
+
+More in [`tools/library/README.md`](tools/library/README.md).
+
 ## The voice
 
 Dead John is the creator's own cloned voice, rendered locally with Qwen3-TTS and checked with Whisper. Lines are picked by hand from several takes; the newest ones use the best Whisper-checked take until they are picked. The other voices on the dial are made from the same free, local tools.
