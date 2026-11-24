@@ -20,12 +20,12 @@ dead-air/
 │   ├── src/core/
 │   │   ├── schedule.ts     Build and query broadcast schedule
 │   │   ├── nowPlaying.ts   What's playing at time T
-│   │   ├── handler.ts      HTTP endpoints (Cloudflare Worker)
+│   │   ├── handler.ts      HTTP endpoints (fetch-style, served by Express in dev-server.ts)
 │   │   ├── day.ts          Day/date helpers
 │   │   ├── index.ts        Export public API
 │   │   └── types.ts        Type definitions
 │   └── tests/
-├── web/                    (Coming) Browser client
+├── web/                    Browser tuner (Vite, no framework)
 ├── data/                   Shared data and metadata
 │   ├── library.json        Master track library
 │   ├── voicebank.json      Dead John voice lines

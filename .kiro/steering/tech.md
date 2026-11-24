@@ -4,8 +4,8 @@
 - **Node.js** 22 (v22.x)
 - **TypeScript** (strict mode)
 - **Web Audio API** (browser audio engine)
-- **Cloudflare Workers** (serverless compute)
-- **Cloudflare R2** (object storage)
+- **Express** (station server: /now, /signal, /request, /stream; serves the built tuner)
+- **Cloudflare Tunnel** (public access to the station running on the creator's own machine)
 
 ## Testing & Development
 - **vitest** (unit testing, includes fast-check)

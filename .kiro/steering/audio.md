@@ -6,7 +6,7 @@ fileMatchPattern: "station/**,web/**,tools/library/**"
 
 # Audio standards
 
-The owner is an audio engineer and a 30 year cinematographer. The station must sound expensive.
+The owner has been a professional cinematographer since 2008. The station must sound expensive.
 
 ## Loudness
 
