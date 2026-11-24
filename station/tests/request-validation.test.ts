@@ -9,7 +9,7 @@ import { validateRequest, parseBlocklist, RateLimiter, REASONS, publicStatus } f
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const BLOCK = parseBlocklist(readFileSync(resolve(root, "data", "blocklist.txt"), "utf-8"));
 const SONGS = new Set(["hey-mom", "sleeper"]);
-const ok = { from: "Ryan", to: "Charlie", message: "Thanks for the late nights, buddy.", songId: "sleeper" };
+const ok = { from: "Sam", to: "Dad", message: "Thanks for the late drives home.", songId: "sleeper" };
 
 describe("T-4: validation", () => {
   it("accepts a normal request and tidies whitespace", () => {

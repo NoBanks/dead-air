@@ -31,8 +31,8 @@ class TestWorker(unittest.TestCase):
                 self.assertGreaterEqual(abs(t - o), MIN_GAP_MS)
 
     def test_script_reads_like_dead_john(self):
-        s = build_script({"from": "Ryan", "to": "Charlie", "message": "Feel better, buddy.", "songTitle": "Sleeper"})
-        self.assertEqual(s, "Got a call on the request line. This one's from Ryan, for Charlie. Feel better, buddy. Here's Sleeper.")
+        s = build_script({"from": "Sam", "to": "Dad", "message": "Thanks for the late drives home.", "songTitle": "Sleeper"})
+        self.assertEqual(s, "Got a call on the request line. This one's from Sam, for Dad. Thanks for the late drives home. Here's Sleeper.")
         self.assertNotIn("—", s)
 
 
