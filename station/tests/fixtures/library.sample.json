@@ -1,0 +1,82 @@
+[
+  {
+    "id": "t001",
+    "slug": "hey-mom",
+    "title": "Hey Mom",
+    "seconds": 150,
+    "talkup_seconds": 8,
+    "lufs": -14,
+    "made_at": "2026-01-01T00:00:00Z",
+    "mp3": "hey-mom.mp3"
+  },
+  {
+    "id": "t002",
+    "slug": "last-exit-before-static",
+    "title": "Last Exit Before Static",
+    "seconds": 162,
+    "talkup_seconds": 11,
+    "lufs": -14,
+    "made_at": "2026-01-01T00:00:00Z",
+    "mp3": "last-exit-before-static.mp3"
+  },
+  {
+    "id": "t003",
+    "slug": "tin-roof-lullaby",
+    "title": "Tin Roof Lullaby",
+    "seconds": 174,
+    "talkup_seconds": 14,
+    "lufs": -14,
+    "made_at": "2026-01-01T00:00:00Z",
+    "mp3": "tin-roof-lullaby.mp3"
+  },
+  {
+    "id": "t004",
+    "slug": "midnight-dial",
+    "title": "Midnight Dial",
+    "seconds": 186,
+    "talkup_seconds": 8,
+    "lufs": -14,
+    "made_at": "2026-01-01T00:00:00Z",
+    "mp3": "midnight-dial.mp3"
+  },
+  {
+    "id": "t005",
+    "slug": "paper-moon-diner",
+    "title": "Paper Moon Diner",
+    "seconds": 198,
+    "talkup_seconds": 11,
+    "lufs": -14,
+    "made_at": "2026-01-01T00:00:00Z",
+    "mp3": "paper-moon-diner.mp3"
+  },
+  {
+    "id": "t006",
+    "slug": "highway-of-small-hours",
+    "title": "Highway of Small Hours",
+    "seconds": 210,
+    "talkup_seconds": 14,
+    "lufs": -14,
+    "made_at": "2026-01-01T00:00:00Z",
+    "mp3": "highway-of-small-hours.mp3"
+  },
+  {
+    "id": "t007",
+    "slug": "porch-light-radio",
+    "title": "Porch Light Radio",
+    "seconds": 222,
+    "talkup_seconds": 8,
+    "lufs": -14,
+    "made_at": "2026-01-01T00:00:00Z",
+    "mp3": "porch-light-radio.mp3"
+  },
+  {
+    "id": "t008",
+    "slug": "cassette-weather",
+    "title": "Cassette Weather",
+    "seconds": 234,
+    "talkup_seconds": 11,
+    "lufs": -14,
+    "made_at": "2026-01-01T00:00:00Z",
+    "mp3": "cassette-weather.mp3"
+  }
+]
