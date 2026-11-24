@@ -9,7 +9,7 @@ import json, os, subprocess, sys, urllib.request
 
 D = os.path.join(os.path.expanduser("~"), ".deadair", "demo")
 VOICE = os.path.join(os.path.expanduser("~"), ".deadair", "voice_mp3")
-FF = r"C:\Users\machi\Downloads\ffmpeg-8.0.1-essentials_build_CLEAN\bin\ffmpeg.exe"
+FF = os.environ.get("FFMPEG", "ffmpeg")
 SI = subprocess.STARTUPINFO(); SI.dwFlags |= subprocess.STARTF_USESHOWWINDOW; SI.wShowWindow = 0
 STATIC = "anoisesrc=c=white:a=0.5:d={d},bandpass=f=600:width_type=q:w=1.2,highpass=f=120,lowpass=f=5000,volume={v}"
 

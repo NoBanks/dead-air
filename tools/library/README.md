@@ -34,9 +34,9 @@ Flags:
 ## Smoke Test (3 tracks)
 
 ```bash
-export FFMPEG="C:\Users\machi\Downloads\ffmpeg-8.0.1-essentials_build_CLEAN\bin\ffmpeg.exe"
-export CSV_PATH="C:\Users\machi\apps\dead-air\data\test-3tracks.csv"
-export LIBRARY_OUT="C:\Users\machi\.deadair\library_mp3"
+export FFMPEG=/path/to/ffmpeg
+export CSV_PATH=../../data/test-3tracks.csv   # point its file column at your own WAVs
+export LIBRARY_OUT=/path/to/library_mp3
 
 npm start
 # First run:  encoded=3, skipped=0

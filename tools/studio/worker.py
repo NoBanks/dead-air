@@ -15,7 +15,7 @@ REQ_DIR = os.environ.get("REQUESTS_DIR", os.path.join(HOME, ".deadair", "request
 STORE = os.path.join(REQ_DIR, "requests.json")
 STUDIO = os.environ.get("STUDIO", os.path.join(HOME, ".deadair", "voice", "studio.py"))
 VOICE_PY = os.environ.get("VOICE_PY", os.path.join(HOME, ".nightride", "voice-env", "Scripts", "pythonw.exe"))
-FF = os.environ.get("FFMPEG", r"C:\Users\machi\Downloads\ffmpeg-8.0.1-essentials_build_CLEAN\bin\ffmpeg.exe")
+FF = os.environ.get("FFMPEG", "ffmpeg")
 STOP_AT = datetime(2027, 2, 5, 23, 59)  # judges need the request line through Jan 29 2027; winners ~Feb 3
 
 MIN_LEAD_MS = 5 * 60_000      # REQ-21: at least 5 minutes after render

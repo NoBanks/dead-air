@@ -67,8 +67,8 @@ try {
 }
 
 // Get audio directories from environment variables
-const libraryOut = process.env.LIBRARY_OUT || "C:\\Users\\machi\\.deadair\\library_mp3";
-const voiceOut = process.env.VOICE_OUT || "C:\\Users\\machi\\.deadair\\voice_mp3";
+const libraryOut = process.env.LIBRARY_OUT || resolve(homedir(), ".deadair", "library_mp3");
+const voiceOut = process.env.VOICE_OUT || resolve(homedir(), ".deadair", "voice_mp3");
 
 // --- Request line (request-line spec) --------------------------------------
 // Queue and rendered reads live outside the repo; the studio worker on this laptop fills them in.
@@ -116,7 +116,7 @@ app.get("/now", routeHandler);
 app.get("/signal", routeHandler);
 
 // --- The station as a real radio stream (plays in the background and on the lock screen) ---------
-const ffmpeg = process.env.FFMPEG || "C:\\Users\\machi\\Downloads\\ffmpeg-8.0.1-essentials_build_CLEAN\\bin\\ffmpeg.exe";
+const ffmpeg = process.env.FFMPEG || "ffmpeg";
 let streamInserts = toInserts([]);
 const refreshInserts = async () => {
   streamInserts = toInserts(await requestStore.list());
@@ -204,6 +204,26 @@ app.get("/requests/:file", (req, res) => {
   });
 });
 
+// AUDIO_FALLBACK=https://deadair.nohumannearby.com lets a fresh clone (no MP3s on disk) play the real
+// station: a missing /audio or /voice file is fetched from there and passed through, Range and all.
+const audioFallback = (process.env.AUDIO_FALLBACK || "").replace(/\/+$/, "");
+async function fromFallback(req: express.Request, res: express.Response, kind: "audio" | "voice") {
+  if (!audioFallback || !/^[\w.\-]+\.mp3$/.test(req.params.file)) return res.status(404).send("Not Found");
+  try {
+    const up = await fetch(`${audioFallback}/${kind}/${encodeURIComponent(req.params.file)}`, {
+      headers: req.headers.range ? { range: String(req.headers.range) } : {},
+    });
+    res.status(up.status);
+    for (const h of ["content-type", "content-length", "content-range", "accept-ranges"]) {
+      const v = up.headers.get(h);
+      if (v) res.setHeader(h, v);
+    }
+    res.send(Buffer.from(await up.arrayBuffer()));
+  } catch {
+    if (!res.headersSent) res.status(502).send("Fallback unavailable");
+  }
+}
+
 // GET /audio/<file> endpoint with Range support
 app.get("/audio/:file", (req, res) => {
   const filePath = resolve(libraryOut, req.params.file);
@@ -211,6 +231,9 @@ app.get("/audio/:file", (req, res) => {
   // Security: ensure path is within libraryOut
   if (!filePath.startsWith(libraryOut)) {
     return res.status(403).send("Forbidden");
+  }
+  if (audioFallback) {
+    try { statSync(filePath); } catch { return void fromFallback(req, res, "audio"); }
   }
 
   try {
@@ -250,6 +273,9 @@ app.get("/voice/:file", (req, res) => {
   // Security: ensure path is within voiceOut
   if (!filePath.startsWith(voiceOut)) {
     return res.status(403).send("Forbidden");
+  }
+  if (audioFallback) {
+    try { statSync(filePath); } catch { return void fromFallback(req, res, "voice"); }
   }
 
   try {

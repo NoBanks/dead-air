@@ -45,10 +45,38 @@ describe("T-4: validation", () => {
 
   it("blocks listed words through spacing and number swaps, but not innocent names", () => {
     expect(validateRequest({ ...ok, message: "you are a b1tch" }, BLOCK, SONGS)).toEqual({ ok: false, reason: REASONS.blocked });
-    expect(validateRequest({ ...ok, message: "k y s" }, BLOCK, SONGS).ok).toBe(true); // split letters of a short term are not a word
+    expect(validateRequest({ ...ok, message: "k y s" }, BLOCK, SONGS)).toEqual({ ok: false, reason: REASONS.blocked }); // spaced letters join back up
     expect(validateRequest({ ...ok, message: "kill your self" }, BLOCK, SONGS)).toEqual({ ok: false, reason: REASONS.blocked });
     expect(validateRequest({ ...ok, from: "Cassie", message: "First class all the way" }, BLOCK, SONGS).ok).toBe(true);
-    expect(validateRequest({ ...ok, to: "Scunthorpe" }, BLOCK, SONGS).ok).toBe(true);
+  });
+
+  // A troll's call is read on air in the creator's cloned voice, so the line errs on the side of no.
+  it.each([
+    "this is fucking great", "fuck-you", "f u c k", "fuuuuck this", "phuck it", "what a shitty day", "bullshit",
+    "you dickhead", "he raped", "nazis rule", "sieg heil", "kill yourself", "everyone knows what you did",
+    "go get a beer", "you are so stupid", "big boobs",
+  ])("blocks %j", (message) => {
+    expect(validateRequest({ ...ok, message }, BLOCK, SONGS)).toEqual({ ok: false, reason: REASONS.blocked });
+  });
+
+  it.each([
+    "call 310 555 0199", "call 310-555-0199", "five five five oh one nine nine", "twitch.tv slash me", "site dot com",
+  ])("blocks numbers and links in any shape: %j", (message) => {
+    expect(validateRequest({ ...ok, message }, BLOCK, SONGS)).toEqual({ ok: false, reason: REASONS.links });
+  });
+
+  it("takes one first name each, never a full name", () => {
+    expect(validateRequest({ ...ok, to: "Jake Miller" }, BLOCK, SONGS)).toEqual({ ok: false, reason: REASONS.name });
+    expect(validateRequest({ ...ok, from: "Mike Hunt" }, BLOCK, SONGS)).toEqual({ ok: false, reason: REASONS.name });
+    expect(validateRequest({ ...ok, from: "Mary-Kate", to: "O'Neil" }, BLOCK, SONGS).ok).toBe(true);
+  });
+
+  it.each([
+    "This hit me hard on the drive home.", "Happy 40th, you are the best.", "Bobby says hi from the class of the night shift.",
+    "Thanks for the swanky dinner and the late show.", "As always, love you.", "Can you play one more for the road?",
+    "Hello from the basement studio.", "Grapes and therapists, what a week.",
+  ])("lets an ordinary dedication through: %j", (message) => {
+    expect(validateRequest({ ...ok, message }, BLOCK, SONGS).ok).toBe(true);
   });
 });
 

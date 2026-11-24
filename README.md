@@ -30,12 +30,12 @@ Kiro CLI ran headless (`kiro-cli chat --v3 --no-interactive`), one spec at a tim
 
 ## How it works
 
-There is no streaming server. The whole station is a pure function of time: `generateDay(day)` lays every song, voice break, station ID, numbers reading and Emergency Broadcast end to end for one Los Angeles station day (DST safe: 23, 24 or 25 hours), with no song repeated inside 24 hours. A browser asks `GET /now`, gets the segment on air and its offset, corrects for clock skew, and schedules audio with Web Audio 20 seconds ahead.
+The schedule needs no streaming server. The whole station is a pure function of time: `generateDay(day)` lays every song, voice break, station ID, numbers reading and Emergency Broadcast end to end for one Los Angeles station day (DST safe: 23, 24 or 25 hours), with no song repeated inside 24 hours. A browser asks `GET /now`, gets the segment on air and its offset, corrects for clock skew, and schedules audio with Web Audio 20 seconds ahead. Phones that need to keep playing with the screen locked get an optional server-mixed `/stream` of the same schedule (the `live-stream` spec).
 
 ```
 station/     the clock (day.ts), now playing, hidden signals (hunt.ts), request rules, server, MCP server
 web/         the tuner: dial, AM filter chain, ducking, Logbook, request form
-tools/       library encoder (Kiro-built CLI) and the request-line studio worker
+tools/       library encoder (Kiro-built CLI), voice studio and request-line worker (studio/), Hunt audio builder (hunt/), demo capture and edit (demo/)
 data/        library.json (1,101 songs), voicebank.json, hunt.json, blocklist.txt
 .kiro/       specs, steering, hooks, MCP settings
 ```
@@ -56,7 +56,16 @@ cd web && npm install && npx vitest run
 cd tools/library && npm install && npx vitest run
 ```
 
-Run it with your own encoded audio. The station reads its settings from environment variables, listed in [`.env.example`](.env.example) (it does not read a `.env` file, so export them in your shell):
+Run the whole station locally with no audio of your own: `AUDIO_FALLBACK` pulls any song or voice file you don't have from the live station.
+
+```bash
+cd web && npm install && npx vite build && cd ..
+cd station && npm install
+AUDIO_FALLBACK=https://deadair.nohumannearby.com STATIC_DIR=../web/dist HOST=127.0.0.1 npm run dev
+# open http://127.0.0.1:8787
+```
+
+Or run it with your own encoded audio. The station reads its settings from environment variables, listed in [`.env.example`](.env.example) (it does not read a `.env` file, so export them in your shell):
 
 ```bash
 export LIBRARY_OUT=/path/to/library_mp3   # song MP3s
@@ -70,7 +79,7 @@ cd station && npm install && npm run dev
 cd web && npm install && npx vite
 ```
 
-Without `data/library.json` (gitignored, written by `tools/library`) the server starts but has no songs.
+`data/library.json` (1,101 songs, metadata only) is in the repo; `tools/library` rebuilds it from your own WAVs.
 
 Production: `cd web && npx vite build`, then run the station with `STATIC_DIR=../web/dist PORT=<port>`.
 
@@ -91,7 +100,7 @@ More in [`tools/library/README.md`](tools/library/README.md).
 
 ## The voice
 
-Dead John is the creator's own cloned voice, rendered locally with Qwen3-TTS and checked with Whisper. Lines are picked by hand from several takes; the newest ones use the best Whisper-checked take until they are picked. The other voices on the dial are made from the same free, local tools.
+Dead John is the creator's own cloned voice, rendered locally with Qwen3-TTS and checked with Whisper (`tools/studio/studio.py`; the voice sample itself stays off GitHub). `tools/studio/build_voicebank.py` turns picked takes into the voice bank, and `tools/hunt/build_hunt.py` mixes the hidden stations. Lines are picked by hand from several takes; the newest ones use the best Whisper-checked take until they are picked. The other voices on the dial are made from the same free, local tools.
 
 ## Music
 

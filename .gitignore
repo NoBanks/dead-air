@@ -17,7 +17,6 @@ tools/library/dist/
 tools/library/node_modules/
 
 # generated data artifacts
-data/library.json
 data/.library-cache.json
 
 # python

@@ -13,8 +13,8 @@ HOME = os.path.expanduser("~")
 LIB = os.path.join(HOME, ".deadair", "library_mp3")
 VOICE = os.path.join(HOME, ".deadair", "voice_mp3")
 REQ = os.path.join(HOME, ".deadair", "requests")
-FF = r"C:\Users\machi\Downloads\ffmpeg-8.0.1-essentials_build_CLEAN\bin\ffmpeg.exe"
-FP = FF.replace("ffmpeg.exe", "ffprobe.exe")
+FF = os.environ.get("FFMPEG", "ffmpeg")
+FP = os.environ.get("FFPROBE", os.path.join(os.path.dirname(FF), os.path.basename(FF).replace("ffmpeg", "ffprobe")))
 API = "http://127.0.0.1:8787"
 SI = subprocess.STARTUPINFO(); SI.dwFlags |= subprocess.STARTF_USESHOWWINDOW; SI.wShowWindow = 0
 DUCK = 0.316  # -10 dB

@@ -52,7 +52,7 @@ To run them:
 2. Ensure audio files are available at `$LIBRARY_OUT` and `$VOICE_OUT`
 3. In a separate terminal, run: `npx playwright test`
 
-Documentation: see `tests/smoke.spec.ts`.
+Documentation: see `e2e/smoke.spec.ts`.
 
 ## Architecture
 
@@ -89,5 +89,5 @@ Backend dev server at `http://localhost:8787` serves:
 
 Set environment variables to point to audio directories:
 
-- `LIBRARY_OUT` - Path to MP3 library (default: `C:\Users\machi\.deadair\library_mp3`)
-- `VOICE_OUT` - Path to voice clips (default: `C:\Users\machi\.deadair\voice_mp3`)
+- `LIBRARY_OUT` - Path to MP3 library (default: `~/.deadair/library_mp3`)
+- `VOICE_OUT` - Path to voice clips (default: `~/.deadair/voice_mp3`)

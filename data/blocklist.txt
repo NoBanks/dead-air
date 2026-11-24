@@ -1,39 +1,143 @@
 # Request line moderation list (server only, never sent to the browser).
-# One term or phrase per line. Matching ignores case, spacing, punctuation and common
-# number-for-letter swaps. Terms of 4 letters or fewer match whole words only.
+# One term or phrase per line. Matching ignores case, spacing, punctuation, stretched letters
+# ("fuuuck") and common number-for-letter swaps, across both names and the message.
+# A plain term matches anywhere. "=term" matches whole words only, for short words that hide
+# inside innocent ones ("ass" in "class", "semen" in "basement").
+
+# profanity
 fuck
+=fck
+=fuk
 shit
 bitch
 cunt
-cock
-dick
-pussy
-asshole
+twat
+=wank
+wanker
 bastard
+asshole
+=ass
+=asses
+=arse
+douche
+bollock
+=prick
+=crap
+=damn
+=hell
+
+# sexual
+=cock
+cocksucker
+=dick
+dickhead
+pussy
+=tit
+=tits
+titties
+boob
+penis
+vagina
+=cum
+jizz
+=semen
+blowjob
+handjob
+=horny
+=sex
+sexy
+=anal
+dildo
+orgasm
+=milf
+porn
+=nude
+=nudes
+naked
+onlyfans
 whore
 slut
-fag
-faggot
+=hoe
+=hoes
+
+# slurs
 nigger
 nigga
+=niger
 retard
-kike
-spic
+=kike
+=spic
 chink
+=gook
+=coon
+wetback
+beaner
 tranny
+=fag
+=fags
+faggot
+=dyke
+
+# hate and violence
 nazi
 hitler
+siegheil
+heilhitler
+kukluxklan
+whitepower
 kill yourself
-kys
+killyourself
+killurself
+=kys
+go die
 suicide
 murder
-rape
+=rape
+=raped
+=raping
+=rapist
+=bomb
+=bombs
+=bombing
 shoot up
-bomb
+school shooting
 terrorist
-porn
-nude
-nudes
-onlyfans
+=gun
+=guns
+
+# harassment
+everyone knows
+what you did
+=loser
+=stupid
+=idiot
+=moron
+=dumb
+=ugly
+=fat
+=hate
+
+# public figures (a first name field only takes one word, but keep the obvious ones out)
+=trump
+=biden
+=obama
+=musk
+=putin
+
+# alcohol (the station never promotes drinking)
+=beer
+=beers
+=wine
+=vodka
+=whiskey
+=tequila
+=booze
+=drunk
+alcohol
+
+# scams
 crypto giveaway
 free money
+=venmo
+cashapp
+=paypal

@@ -50,7 +50,7 @@ function resolveConfig(): RunConfig {
 
   const ffmpegPath =
     process.env["FFMPEG"] ??
-    "C:\\Users\\machi\\Downloads\\ffmpeg-8.0.1-essentials_build_CLEAN\\bin\\ffmpeg.exe";
+    "ffmpeg";
 
   const libraryOut = process.env["LIBRARY_OUT"] ?? "";
   const csvPath = process.env["CSV_PATH"] ?? "";

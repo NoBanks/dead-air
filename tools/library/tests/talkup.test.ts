@@ -22,7 +22,7 @@ import { spawn } from "child_process";
 
 const FFMPEG =
   process.env["FFMPEG"] ??
-  "C:\\Users\\machi\\Downloads\\ffmpeg-8.0.1-essentials_build_CLEAN\\bin\\ffmpeg.exe";
+  "ffmpeg";
 
 const SAMPLE_RATE = 22050;
 const CHANNELS = 1; // WAVs generated in these tests are mono
